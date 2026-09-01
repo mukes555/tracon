@@ -1,0 +1,11 @@
+[package]
+name = "tracon-adapters"
+description = "Per-agent adapters that normalize raw agent data into Tracon events"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+serde_json.workspace = true
+tracon-core = { path = "../tracon-core" }

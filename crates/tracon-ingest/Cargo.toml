@@ -1,0 +1,22 @@
+[package]
+name = "tracon-ingest"
+description = "Localhost HTTP server receiving agent hook events"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+axum.workspace = true
+notify.workspace = true
+reqwest.workspace = true
+time.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+tracon-adapters = { path = "../tracon-adapters" }
+tracon-core = { path = "../tracon-core" }
+
+[dev-dependencies]
+tower = { version = "0.5", features = ["util"] }

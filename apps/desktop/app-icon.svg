@@ -1,0 +1,10 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <!-- Tracon app icon: bold forest T on a flat bright green tile.
+       Palette borrowed from the Wise brand family: #163300 on #9FE870.
+       The canvas is transparent and the tile is inset ~10% per side, the
+       way macOS icons carry their own margin; full-bleed squares render
+       as oversized ugly blocks in the Dock. -->
+  <rect x="100" y="100" width="824" height="824" rx="185" fill="#9fe870"/>
+  <rect x="298" y="333" width="428" height="121" rx="29" fill="#163300"/>
+  <rect x="452" y="333" width="121" height="388" rx="29" fill="#163300"/>
+</svg>

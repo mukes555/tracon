@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "hooks": {
+    "sessionStart": [
+      { "command": "sh -c 'cat | curl -s -m 5 -X POST -H \"content-type: application/json\" --data-binary @- http://localhost:48620/ingest -o /dev/null; exit 0'" }
+    ],
+    "sessionEnd": [
+      { "command": "sh -c 'cat | curl -s -m 5 -X POST -H \"content-type: application/json\" --data-binary @- http://localhost:48620/ingest -o /dev/null; exit 0'" }
+    ],
+    "beforeSubmitPrompt": [
+      { "command": "sh -c 'cat | curl -s -m 5 -X POST -H \"content-type: application/json\" --data-binary @- http://localhost:48620/ingest -o /dev/null; exit 0'" }
+    ],
+    "beforeShellExecution": [
+      { "command": "sh -c 'cat | curl -s -m 5 -X POST -H \"content-type: application/json\" --data-binary @- http://localhost:48620/ingest -o /dev/null; exit 0'" }
+    ],
+    "afterShellExecution": [
+      { "command": "sh -c 'cat | curl -s -m 5 -X POST -H \"content-type: application/json\" --data-binary @- http://localhost:48620/ingest -o /dev/null; exit 0'" }
+    ],
+    "afterFileEdit": [
+      { "command": "sh -c 'cat | curl -s -m 5 -X POST -H \"content-type: application/json\" --data-binary @- http://localhost:48620/ingest -o /dev/null; exit 0'" }
+    ],
+    "beforeMCPExecution": [
+      { "command": "sh -c 'cat | curl -s -m 5 -X POST -H \"content-type: application/json\" --data-binary @- http://localhost:48620/ingest -o /dev/null; exit 0'" }
+    ]
+  }
+}

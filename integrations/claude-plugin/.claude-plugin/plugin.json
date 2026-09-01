@@ -1,0 +1,9 @@
+{
+  "name": "tracon",
+  "version": "0.1.0",
+  "description": "Streams Claude Code activity to the Tracon desktop recorder. Local-only: events go to a localhost port, never to the network.",
+  "author": {
+    "name": "Tracon",
+    "url": "https://github.com/tracon-dev/tracon"
+  }
+}

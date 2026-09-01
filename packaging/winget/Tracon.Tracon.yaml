@@ -1,0 +1,9 @@
+# Skeleton winget manifest (version manifest goes alongside installer and
+# locale manifests when submitting to microsoft/winget-pkgs).
+# TODO before submission: publisher/package identifiers must match the
+# registered GitHub org, InstallerUrl and hash come from the release.
+PackageIdentifier: Tracon.Tracon
+PackageVersion: 0.1.0
+DefaultLocale: en-US
+ManifestType: version
+ManifestVersion: 1.6.0

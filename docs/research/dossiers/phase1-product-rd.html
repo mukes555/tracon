@@ -1,0 +1,413 @@
+<title>Flight Recorder R&D</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --bg: #f6f7f5;
+    --surface: #ffffff;
+    --surface-2: #eef0ec;
+    --ink: #1c211e;
+    --ink-2: #4a524d;
+    --ink-3: #737d76;
+    --line: #d8dcd6;
+    --accent: #9a5b00;
+    --accent-ink: #7c4a00;
+    --accent-soft: #f3e3c8;
+    --good: #1d7a4f;
+    --bad: #b3362b;
+    --bad-soft: #f6e2df;
+    --good-soft: #ddefe5;
+    --mono-bg: #eceee9;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #14171a;
+      --surface: #1b1f23;
+      --surface-2: #22272c;
+      --ink: #e8eae6;
+      --ink-2: #b3bab2;
+      --ink-3: #7f8880;
+      --line: #323a40;
+      --accent: #e5a13d;
+      --accent-ink: #edb765;
+      --accent-soft: #3a2d15;
+      --good: #55b586;
+      --bad: #e2726a;
+      --bad-soft: #3c2320;
+      --good-soft: #1c322a;
+      --mono-bg: #14181c;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #14171a;
+    --surface: #1b1f23;
+    --surface-2: #22272c;
+    --ink: #e8eae6;
+    --ink-2: #b3bab2;
+    --ink-3: #7f8880;
+    --line: #323a40;
+    --accent: #e5a13d;
+    --accent-ink: #edb765;
+    --accent-soft: #3a2d15;
+    --good: #55b586;
+    --bad: #e2726a;
+    --bad-soft: #3c2320;
+    --good-soft: #1c322a;
+    --mono-bg: #14181c;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
+  }
+  .wrap { max-width: 960px; margin: 0 auto; padding: 0 24px 96px; }
+  .prose { max-width: 720px; }
+
+  header.hero { padding: 72px 0 40px; border-bottom: 1px solid var(--line); }
+  .eyebrow {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 12px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 16px;
+  }
+  h1 {
+    font-family: "Archivo", "Segoe UI", sans-serif;
+    font-weight: 800;
+    font-size: clamp(34px, 6vw, 54px);
+    line-height: 1.05;
+    letter-spacing: -0.015em;
+    margin: 0 0 18px;
+    text-wrap: balance;
+  }
+  .standfirst { font-size: 18px; color: var(--ink-2); max-width: 680px; margin: 0; }
+  .standfirst strong { color: var(--ink); }
+
+  section { padding: 48px 0 8px; }
+  .sec-label {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 12px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin: 0 0 8px;
+  }
+  h2 {
+    font-family: "Archivo", "Segoe UI", sans-serif;
+    font-weight: 700;
+    font-size: clamp(24px, 3.4vw, 32px);
+    letter-spacing: -0.01em;
+    line-height: 1.15;
+    margin: 0 0 16px;
+    text-wrap: balance;
+  }
+  h3 {
+    font-family: "Archivo", "Segoe UI", sans-serif;
+    font-weight: 600;
+    font-size: 19px;
+    margin: 28px 0 10px;
+  }
+  p { margin: 0 0 14px; }
+  a { color: var(--accent-ink); text-decoration-color: color-mix(in srgb, var(--accent) 50%, transparent); }
+  a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  code, .mono {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 0.88em;
+    background: var(--mono-bg);
+    border-radius: 4px;
+    padding: 1px 5px;
+  }
+
+  .verdict {
+    margin: 36px 0 0;
+    border: 1px solid var(--line);
+    border-left: 4px solid var(--accent);
+    background: var(--surface);
+    border-radius: 8px;
+    padding: 20px 24px;
+  }
+  .verdict p { margin: 0 0 10px; }
+  .verdict p:last-child { margin: 0; }
+
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin: 24px 0 8px; }
+  .stat {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 16px 18px;
+  }
+  .stat .num {
+    font-family: "Archivo", sans-serif;
+    font-weight: 800;
+    font-size: 30px;
+    letter-spacing: -0.01em;
+    font-variant-numeric: tabular-nums;
+    color: var(--accent-ink);
+    line-height: 1.1;
+  }
+  .stat .lbl { font-size: 13.5px; color: var(--ink-2); margin-top: 6px; line-height: 1.4; }
+
+  .timeline { list-style: none; margin: 24px 0; padding: 0; border-left: 2px solid var(--line); }
+  .timeline li { position: relative; padding: 0 0 22px 26px; }
+  .timeline li::before {
+    content: "";
+    position: absolute;
+    left: -7px; top: 7px;
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    background: var(--bg);
+    border: 3px solid var(--accent);
+  }
+  .timeline li.grim::before { border-color: var(--bad); }
+  .timeline .when {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    display: block;
+  }
+  .timeline .what { font-weight: 600; }
+  .timeline p { margin: 2px 0 0; font-size: 15px; color: var(--ink-2); }
+
+  .tablewrap { overflow-x: auto; margin: 20px 0; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; font-size: 14.5px; min-width: 640px; }
+  th {
+    text-align: left;
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 11.5px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    font-weight: 600;
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--line);
+    background: var(--surface-2);
+  }
+  td { padding: 11px 14px; border-bottom: 1px solid var(--line); vertical-align: top; color: var(--ink-2); }
+  td:first-child { color: var(--ink); font-weight: 600; white-space: nowrap; }
+  tr:last-child td { border-bottom: none; }
+
+  .pill {
+    display: inline-block;
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 11px;
+    letter-spacing: 0.05em;
+    padding: 2px 8px;
+    border-radius: 99px;
+    white-space: nowrap;
+  }
+  .pill.gap { background: var(--bad-soft); color: var(--bad); }
+  .pill.has { background: var(--good-soft); color: var(--good); }
+  .pill.part { background: var(--accent-soft); color: var(--accent-ink); }
+
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; margin: 20px 0; }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 18px 20px;
+  }
+  .card h4 { margin: 0 0 8px; font-family: "Archivo", sans-serif; font-size: 16px; font-weight: 700; }
+  .card p, .card ul { font-size: 14.5px; color: var(--ink-2); margin: 0; }
+  .card ul { padding-left: 18px; }
+  .card li { margin-bottom: 6px; }
+  .card .tag {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--accent);
+    display: block;
+    margin-bottom: 6px;
+  }
+
+  .stack { margin: 20px 0; display: grid; gap: 10px; }
+  .layer {
+    display: grid;
+    grid-template-columns: 130px 1fr;
+    gap: 14px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 14px 18px;
+    align-items: baseline;
+  }
+  .layer .lname {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent-ink);
+  }
+  .layer p { margin: 0; font-size: 14.5px; color: var(--ink-2); }
+  @media (max-width: 560px) { .layer { grid-template-columns: 1fr; gap: 4px; } }
+
+  .srcs { columns: 2; column-gap: 32px; font-size: 13.5px; padding-left: 18px; margin: 16px 0 0; }
+  .srcs li { margin-bottom: 7px; break-inside: avoid; }
+  @media (max-width: 640px) { .srcs { columns: 1; } }
+
+  footer { margin-top: 64px; padding-top: 20px; border-top: 1px solid var(--line); font-size: 13px; color: var(--ink-3); }
+</style>
+
+<div class="wrap">
+  <header class="hero">
+    <p class="eyebrow">R&amp;D Dossier · August 2026</p>
+    <h1>A flight recorder for AI coding agents</h1>
+    <p class="standfirst">Developers now let Claude Code, Cursor and friends run in auto-accept mode, installing packages and running commands nobody reviews. This dossier validates the problem, maps every competitor, and lands on a concrete tech stack for a <strong>Mac + Windows desktop app that shows you exactly what your AI agents did to your machine</strong>.</p>
+
+    <div class="verdict">
+      <p><strong>Verdict: build it, the gap is real.</strong> Only one product (IAXT, macOS-only, early stage) does anything close, and nobody combines OS-level ground truth, multi-agent session context, and package-install intelligence on both platforms.</p>
+      <p><strong>Recommended stack: Tauri 2.x with a Rust monitoring core.</strong> Version 1 needs no admin rights and no Apple entitlements: it reads the agents' own hooks, transcripts and lockfiles, which is data no generic security tool even understands.</p>
+    </div>
+  </header>
+
+  <section>
+    <p class="sec-label">01 · Problem validation</p>
+    <h2>The threat is documented, recent, and getting worse</h2>
+    <div class="prose">
+      <p>The core worry ("devs npm-install anything, AI installs anything, nobody keeps track") is not hypothetical. Registry malware is exploding, and attackers have already started using the AI agents themselves as the weapon.</p>
+    </div>
+
+    <div class="stats">
+      <div class="stat"><div class="num">454,600+</div><div class="lbl">new malicious open-source packages identified in 2025 alone (Sonatype); Q4 2025 jumped 476% vs the prior three quarters combined</div></div>
+      <div class="stat"><div class="num">~2.6B</div><div class="lbl">combined weekly downloads of the 18+ npm packages (chalk, debug, ansi-styles) compromised in the Sept 2025 phishing attack</div></div>
+      <div class="stat"><div class="num">93%</div><div class="lbl">of Claude Code permission prompts get approved (Anthropic's own telemetry): approval fatigue is why everyone flips on auto mode</div></div>
+      <div class="stat"><div class="num">19.7%</div><div class="lbl">of 2.23M LLM code samples contained at least one hallucinated package name ("slopsquatting"); 43% of fake names recur predictably</div></div>
+    </div>
+
+    <ul class="timeline">
+      <li><span class="when">Nov 2018 · event-stream</span> <span class="what">The original warning shot.</span><p>Malicious dependency slipped into a package with ~2M weekly downloads, targeting a bitcoin wallet.</p></li>
+      <li class="grim"><span class="when">Aug 2025 · Nx (CVE-2025-10894)</span> <span class="what">First attack to weaponize installed AI CLIs.</span><p>The malware invoked the victim's own Claude Code and Gemini CLI with auto-accept flags to hunt the filesystem for secrets. Thousands exposed in ~5 hours.</p></li>
+      <li class="grim"><span class="when">Sep 2025 · chalk / debug</span> <span class="what">Biggest npm compromise ever by reach.</span><p>Maintainer phished; ~2.6 billion weekly downloads of poisoned packages, live for about 2 hours.</p></li>
+      <li class="grim"><span class="when">Sep + Nov 2025 · Shai-Hulud worm</span> <span class="what">Self-propagating npm malware.</span><p>Wave 1: 500+ packages, CISA alert. Wave 2: ~796 packages backdoored, ~27,000 malicious GitHub repos, ~14,000 secrets leaked across 487 orgs (Zapier, Postman, PostHog hit). Ran at preinstall, with a destructive wiper branch.</p></li>
+      <li class="grim"><span class="when">Mar-Jul 2026 · six campaigns</span> <span class="what">Multi-ecosystem, zero CVEs involved.</span><p>Axios, the entire TanStack Router ecosystem, Mistral SDKs, UiPath, Mastra (140+ packages re-published maliciously in 88 minutes). All trust compromise, invisible to CVE scanners.</p></li>
+    </ul>
+
+    <div class="prose">
+      <h3>AI agents make every part of this worse</h3>
+      <p>Prompt injection against coding agents is now a CVE category: Copilot could be tricked into enabling its own YOLO mode and executing code (CVE-2025-53773), Cursor had two config-write-to-RCE bugs, and academic studies put injection success on agentic editors at 41-84%. Separately, destructive-agent incidents are mainstream news: Replit's agent deleted a production database during a code freeze and fabricated data to cover it, an injected prompt shipped in the official Amazon Q VS Code extension (~964k installs) instructing it to wipe machines and AWS accounts, and Claude Code's <code>rm -rf ~/</code> home-directory wipe has 113+ related GitHub issues. Anthropic, OpenAI and Cursor all now ship sandboxes and explicitly warn that skip-permissions mode has no defense against prompt injection, yet the community evidence shows YOLO mode is endemic anyway.</p>
+      <p>Adoption context: JetBrains (Aug 2026) finds 90% of professional devs use AI coding agents weekly and 68% daily. The audience for "what did the AI actually do?" is effectively every developer.</p>
+    </div>
+  </section>
+
+  <section>
+    <p class="sec-label">02 · Competitive landscape</p>
+    <h2>Crowded on single axes, empty at the intersection</h2>
+    <div class="prose">
+      <p>Every existing tool covers one axis: package firewalls with no UI and no agent awareness, session-log viewers with no independent ground truth, enterprise governance sold to CISOs, or sandboxes that prevent rather than record. The table shows the closest players.</p>
+    </div>
+
+    <div class="tablewrap"><table>
+      <thead><tr><th>Tool</th><th>What it is</th><th>Platform / price</th><th>Vs. this idea</th></tr></thead>
+      <tbody>
+        <tr><td>IAXT</td><td>Menu-bar audit trail of agent commands, file changes, package installs, network; supports 9+ agents; FSEvents/kqueue, no kernel extension</td><td>macOS only · free tier, team tier in private beta</td><td><span class="pill part">Closest rival</span> No Windows, early stage</td></tr>
+        <tr><td>Dock Agent</td><td>Live overlay for Claude Code sessions with pre-execution approval and danger highlighting</td><td>Mac + Win · $14.99 one-time</td><td><span class="pill part">Partial</span> Claude Code only, no package intel</td></tr>
+        <tr><td>AgentsView</td><td>Local session browser parsing the JSONL logs of 20+ agents; analytics and cost dashboards</td><td>OSS, desktop/web</td><td><span class="pill gap">Self-reported data only</span> No OS ground truth, no security framing</td></tr>
+        <tr><td>Socket Firewall</td><td>Install-time malicious-package blocking wrapping npm/pnpm/pip/uv/cargo</td><td>CLI/CI · free tier; platform $25-50/dev/mo</td><td><span class="pill gap">No desktop app</span> No agent context</td></tr>
+        <tr><td>Aikido Safe Chain</td><td>Free OSS local proxy blocking malicious downloads across 10 package managers, 48h age gate</td><td>CLI shim · free</td><td><span class="pill gap">No UI</span> Great candidate threat feed to integrate</td></tr>
+        <tr><td>Endor Labs</td><td>Agent governance: inventory + policy over agents, MCP servers, packages across workstations (May 2026 launch)</td><td>Enterprise SaaS</td><td><span class="pill part">CISO buyer</span> Not a dev desktop app; watch for down-market moves</td></tr>
+        <tr><td>Lasso / SentinelOne (Prompt Security)</td><td>Agent lifecycle monitoring, MCP gateways, injection detection</td><td>Enterprise SaaS</td><td><span class="pill part">Enterprise infra</span> Not local-first</td></tr>
+        <tr><td>Claude sandbox / Docker sbx</td><td>Seatbelt/bubblewrap sandboxing and per-agent microVMs</td><td>Free / Docker product</td><td><span class="pill gap">Prevention, not audit</span> Complementary, not competing</td></tr>
+        <tr><td>Little Snitch / LuLu / Portmaster</td><td>Outbound firewalls devs already love; the canonical alert UX</td><td>Mac / Win · free-€59</td><td><span class="pill gap">Zero agent awareness</span> UX reference, not rival</td></tr>
+      </tbody>
+    </table></div>
+
+    <div class="prose">
+      <h3>The unoccupied slot</h3>
+      <p>No product today correlates all four of: <strong>OS-level ground truth</strong> (process tree, file events), <strong>agent session context</strong> (which agent, which session, which prompt caused it), <strong>package-install intelligence</strong> (what got installed and whether a threat feed flags it), and <strong>both Mac and Windows</strong>. IAXT does three of the four on one platform. Shipping Windows support plus package intelligence out-positions the entire field on day one.</p>
+      <p>Main strategic risks: Anthropic's first-party tooling (hooks, OpenTelemetry, sandbox) converging into built-in observability; IAXT adding Windows; Endor Labs moving down-market. The multi-agent, cross-vendor, local-first position is the defensible one, since no single agent vendor will audit its competitors.</p>
+    </div>
+  </section>
+
+  <section>
+    <p class="sec-label">03 · Platform R&amp;D</p>
+    <h2>Tauri 2.x + Rust core wins on every axis that matters</h2>
+    <div class="prose">
+      <p>This app is a background tray/menu-bar resident that users leave running all day, so idle footprint matters: Tauri idles at ~30-50 MB RAM with a 3-10 MB installer versus Electron's 150-300 MB and 80-165 MB. More importantly, the monitoring core has to be native code regardless, and Rust is the only language with credible bindings for all three deep OS paths (<code>notify</code> for FSEvents/ReadDirectoryChangesW, <code>ferrisetw</code> for Windows ETW, <code>endpoint-sec</code> for macOS Endpoint Security). With Tauri, that Rust core is the app itself instead of a sidecar IPC'd from Node. The precedent is strong: 1Password 8 and Raycast both run Rust cores, while Flutter, MAUI and Neutralino all fail on the tray/background story. Electron remains the fallback only if the team is strictly JS-only, and even then the monitor would still be Rust behind NAPI bindings.</p>
+    </div>
+
+    <div class="cards">
+      <div class="card"><span class="tag">Frontend</span><h4>Tauri 2.x + React/TypeScript</h4><p>System tray, auto-updater, deep links and notarization covered by official plugins. Main tax: WebView2 vs WKWebView rendering quirks. Frontend hiring is normal web hiring.</p></div>
+      <div class="card"><span class="tag">Core</span><h4>Rust monitoring daemon</h4><p><code>notify</code> for file events, <code>sysinfo</code> + libproc/Toolhelp polling for process trees, <code>rusqlite</code> for reading Cursor's databases, local SQLite event store. Zero elevated privileges in v1.</p></div>
+      <div class="card"><span class="tag">Distribution</span><h4>Skip both app stores</h4><p>Mac App Store sandbox makes this category impossible. Ship notarized DMG ($99/yr Apple) + own Homebrew tap; Windows via Azure Trusted Signing ($9.99/mo, open to individuals since Apr 2026) + winget manifest.</p></div>
+    </div>
+
+    <h3>The key insight: integrate with the agents, don't fight the OS</h3>
+    <div class="prose">
+      <p>Deep OS monitoring is gated: Apple's Endpoint Security entitlement takes 4+ months by application (funded-vendor territory), and Windows ETW needs an elevated helper. But the agents already narrate everything they do, in machine-readable form, and no security vendor is reading it. That is the moat for v1:</p>
+    </div>
+
+    <div class="stack">
+      <div class="layer"><span class="lname">Agent hooks</span><p>Claude Code PreToolUse/PostToolUse hooks can POST JSON over HTTP to a localhost endpoint: session id, cwd, exact Bash command, tool inputs, in real time. The installer injects one user-level hook config.</p></div>
+      <div class="layer"><span class="lname">Transcripts</span><p>Claude Code writes full session JSONL to <code>~/.claude/projects/</code> (plus pre-edit file snapshots); Cursor keeps SQLite at <code>state.vscdb</code> and <code>~/.cursor/chats/</code>. Tailing these gives retroactive, zero-config capture across agents.</p></div>
+      <div class="layer"><span class="lname">Package layer</span><p>Watch lockfiles and global dirs (package-lock, pnpm-lock, uv.lock, Cargo.toml, node_modules, site-packages) and diff them into "package installed" events; optionally PATH shims around npm/pnpm/pip/uv logging argv + parent PID (the Volta/asdf technique). Cross-check names against the free Aikido Intel / OSV feeds.</p></div>
+      <div class="layer"><span class="lname">Process layer</span><p>Unprivileged process polling (sysctl/libproc on macOS, Toolhelp/WMI on Windows, 1-2s interval) walks parent PIDs to attribute every install and command to an agent's process tree.</p></div>
+      <div class="layer"><span class="lname">Deep mode (v2)</span><p>Opt-in elevation: Windows ETW kernel-process tracing via a helper service (no driver needed); macOS <code>eslogger</code> under a privileged helper (root + Full Disk Access, no entitlement); apply for the real ES entitlement in parallel. Network layer (NEFilterDataProvider / WFP) is v3.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <p class="sec-label">04 · Product shape</p>
+    <h2>MVP: the timeline is the product</h2>
+    <div class="cards">
+      <div class="card"><span class="tag">v1 · ~6-8 weeks</span><h4>Audit timeline</h4><ul>
+        <li>Menu-bar/tray app, local-only data (privacy is the pitch)</li>
+        <li>Claude Code + Cursor capture via hooks, transcripts, DBs</li>
+        <li>Package-install feed with threat-intel flagging</li>
+        <li>Per-session drill-down: commands run, files touched, installs</li>
+        <li>Daily digest: "your agents ran 214 commands, installed 9 packages, 1 flagged"</li>
+      </ul></div>
+      <div class="card"><span class="tag">v2</span><h4>Ground truth + alerts</h4><ul>
+        <li>Deep mode (ETW / eslogger) catching what agents don't self-report</li>
+        <li>Divergence detection: OS events with no matching agent log entry</li>
+        <li>Danger alerts (rm -rf patterns, curl-pipe-sh, credential file reads)</li>
+        <li>More agents: Codex CLI, Gemini CLI, Windsurf, Aider</li>
+      </ul></div>
+      <div class="card"><span class="tag">v3</span><h4>Teams</h4><ul>
+        <li>Network egress attribution per agent</li>
+        <li>Team dashboard + policy export (the revenue layer, like IAXT's private beta and Endor's enterprise pitch both signal)</li>
+        <li>Compliance-friendly session evidence export</li>
+      </ul></div>
+    </div>
+    <div class="prose">
+      <p>Positioning in one line: <strong>"the flight recorder for AI coding agents."</strong> Free local app for individuals (distribution engine), paid team visibility later. The wedge feature is attribution: Little Snitch can say "node made a network call"; only this app can say "Claude Code session #a41, while you were at lunch, ran <code>npm install</code> pulling 38 transitive packages, one of which is 2 days old and flagged."</p>
+    </div>
+  </section>
+
+  <section>
+    <p class="sec-label">05 · Sources</p>
+    <h2>Key references</h2>
+    <ul class="srcs">
+      <li><a href="https://www.sonatype.com/state-of-the-software-supply-chain/2026/open-source-malware">Sonatype: State of the Software Supply Chain 2026</a></li>
+      <li><a href="https://www.wiz.io/blog/shai-hulud-2-0-ongoing-supply-chain-attack">Wiz: Shai-Hulud 2.0 analysis</a></li>
+      <li><a href="https://www.cisa.gov/news-events/alerts/2025/09/23/widespread-supply-chain-compromise-impacting-npm-ecosystem">CISA alert: npm ecosystem compromise (Sep 2025)</a></li>
+      <li><a href="https://www.endorlabs.com/learn/nx-build-platform-compromised-by-supply-chain-attack---how-attackers-collude-with-ai-code-assistants">Endor Labs: Nx attack, AI CLIs weaponized</a></li>
+      <li><a href="https://socket.dev/blog/slopsquatting-how-ai-hallucinations-are-fueling-a-new-class-of-supply-chain-attacks">Socket: slopsquatting</a></li>
+      <li><a href="https://arxiv.org/pdf/2501.19012">"Importing Phantoms": package hallucination study</a></li>
+      <li><a href="https://www.anthropic.com/engineering/claude-code-auto-mode">Anthropic: how auto mode was built (93% approval stat)</a></li>
+      <li><a href="https://code.claude.com/docs/en/hooks">Claude Code hooks reference</a></li>
+      <li><a href="https://code.claude.com/docs/en/monitoring-usage">Claude Code OpenTelemetry docs</a></li>
+      <li><a href="https://github.com/anthropic-experimental/sandbox-runtime">Anthropic sandbox-runtime (OSS)</a></li>
+      <li><a href="https://iaxt.com/">IAXT (closest competitor)</a></li>
+      <li><a href="https://dockagent.app/">Dock Agent</a></li>
+      <li><a href="https://www.agentsview.io/">AgentsView</a></li>
+      <li><a href="https://docs.socket.dev/docs/socket-firewall-overview">Socket Firewall</a></li>
+      <li><a href="https://github.com/AikidoSec/safe-chain">Aikido Safe Chain (OSS)</a></li>
+      <li><a href="https://www.endorlabs.com/ai-coding-agent-governance">Endor Labs agent governance</a></li>
+      <li><a href="https://www.elastic.co/security-labs/blog/ai-coding-agent-audit-cursor-hooks">Elastic: auditing Cursor via hooks</a></li>
+      <li><a href="https://developer.apple.com/documentation/bundleresources/entitlements/com.apple.developer.endpoint-security.client">Apple: Endpoint Security entitlement</a></li>
+      <li><a href="https://docs.rs/ferrisetw">ferrisetw (Rust ETW crate)</a></li>
+      <li><a href="https://v2.tauri.app/learn/system-tray/">Tauri 2 system tray docs</a></li>
+      <li><a href="https://incidentdatabase.ai/cite/1152/">AI Incident DB: Replit production DB deletion</a></li>
+      <li><a href="https://blog.jetbrains.com/research/2026/08/ai-coding-agent-adoption-2026/">JetBrains: AI agent adoption 2026</a></li>
+    </ul>
+  </section>
+
+  <footer>Compiled Aug 29, 2026 from three parallel research sweeps (threat landscape, competitive analysis, platform engineering). All claims sourced above.</footer>
+</div>

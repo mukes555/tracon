@@ -1,0 +1,307 @@
+<title>Flight Recorder Integration</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --bg: #f6f7f5;
+    --surface: #ffffff;
+    --surface-2: #eef0ec;
+    --ink: #1c211e;
+    --ink-2: #4a524d;
+    --ink-3: #737d76;
+    --line: #d8dcd6;
+    --accent: #9a5b00;
+    --accent-ink: #7c4a00;
+    --accent-soft: #f3e3c8;
+    --good: #1d7a4f;
+    --bad: #b3362b;
+    --bad-soft: #f6e2df;
+    --good-soft: #ddefe5;
+    --mono-bg: #eceee9;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #14171a;
+      --surface: #1b1f23;
+      --surface-2: #22272c;
+      --ink: #e8eae6;
+      --ink-2: #b3bab2;
+      --ink-3: #7f8880;
+      --line: #323a40;
+      --accent: #e5a13d;
+      --accent-ink: #edb765;
+      --accent-soft: #3a2d15;
+      --good: #55b586;
+      --bad: #e2726a;
+      --bad-soft: #3c2320;
+      --good-soft: #1c322a;
+      --mono-bg: #14181c;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #14171a;
+    --surface: #1b1f23;
+    --surface-2: #22272c;
+    --ink: #e8eae6;
+    --ink-2: #b3bab2;
+    --ink-3: #7f8880;
+    --line: #323a40;
+    --accent: #e5a13d;
+    --accent-ink: #edb765;
+    --accent-soft: #3a2d15;
+    --good: #55b586;
+    --bad: #e2726a;
+    --bad-soft: #3c2320;
+    --good-soft: #1c322a;
+    --mono-bg: #14181c;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
+  }
+  .wrap { max-width: 960px; margin: 0 auto; padding: 0 24px 96px; }
+  .prose { max-width: 720px; }
+  header.hero { padding: 72px 0 40px; border-bottom: 1px solid var(--line); }
+  .eyebrow {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--accent); margin: 0 0 16px;
+  }
+  h1 {
+    font-family: "Archivo", "Segoe UI", sans-serif;
+    font-weight: 800; font-size: clamp(34px, 6vw, 52px);
+    line-height: 1.05; letter-spacing: -0.015em;
+    margin: 0 0 18px; text-wrap: balance;
+  }
+  .standfirst { font-size: 18px; color: var(--ink-2); max-width: 680px; margin: 0; }
+  .standfirst strong { color: var(--ink); }
+  section { padding: 48px 0 8px; }
+  .sec-label {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--ink-3); margin: 0 0 8px;
+  }
+  h2 {
+    font-family: "Archivo", "Segoe UI", sans-serif;
+    font-weight: 700; font-size: clamp(24px, 3.4vw, 32px);
+    letter-spacing: -0.01em; line-height: 1.15; margin: 0 0 16px; text-wrap: balance;
+  }
+  h3 { font-family: "Archivo", sans-serif; font-weight: 600; font-size: 19px; margin: 28px 0 10px; }
+  p { margin: 0 0 14px; }
+  a { color: var(--accent-ink); text-decoration-color: color-mix(in srgb, var(--accent) 50%, transparent); }
+  a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  code, .mono {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 0.88em; background: var(--mono-bg); border-radius: 4px; padding: 1px 5px;
+  }
+  pre {
+    background: var(--mono-bg); border: 1px solid var(--line); border-radius: 8px;
+    padding: 16px 18px; overflow-x: auto; font-size: 13px; line-height: 1.55;
+    font-family: "IBM Plex Mono", ui-monospace, monospace; margin: 16px 0;
+  }
+  pre code { background: none; padding: 0; }
+  .verdict {
+    margin: 36px 0 0; border: 1px solid var(--line); border-left: 4px solid var(--accent);
+    background: var(--surface); border-radius: 8px; padding: 20px 24px;
+  }
+  .verdict p { margin: 0 0 10px; }
+  .verdict p:last-child { margin: 0; }
+  .tablewrap { overflow-x: auto; margin: 20px 0; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; font-size: 14.5px; min-width: 640px; }
+  th {
+    text-align: left; font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 11.5px; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--ink-3); font-weight: 600; padding: 12px 14px;
+    border-bottom: 1px solid var(--line); background: var(--surface-2);
+  }
+  td { padding: 11px 14px; border-bottom: 1px solid var(--line); vertical-align: top; color: var(--ink-2); }
+  td:first-child { color: var(--ink); font-weight: 600; white-space: nowrap; }
+  tr:last-child td { border-bottom: none; }
+  .pill {
+    display: inline-block; font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 11px; letter-spacing: 0.05em; padding: 2px 8px; border-radius: 99px; white-space: nowrap;
+  }
+  .pill.p1 { background: var(--good-soft); color: var(--good); }
+  .pill.p2 { background: var(--accent-soft); color: var(--accent-ink); }
+  .pill.p3 { background: var(--surface-2); color: var(--ink-3); }
+  .pill.no { background: var(--bad-soft); color: var(--bad); }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; margin: 20px 0; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 18px 20px; }
+  .card h4 { margin: 0 0 8px; font-family: "Archivo", sans-serif; font-size: 16px; font-weight: 700; }
+  .card p, .card ul { font-size: 14.5px; color: var(--ink-2); margin: 0; }
+  .card ul { padding-left: 18px; }
+  .card li { margin-bottom: 6px; }
+  .card .tag {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--accent); display: block; margin-bottom: 6px;
+  }
+  .stack { margin: 20px 0; display: grid; gap: 10px; }
+  .layer {
+    display: grid; grid-template-columns: 150px 1fr; gap: 14px;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 8px;
+    padding: 14px 18px; align-items: baseline;
+  }
+  .layer .lname {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent-ink);
+  }
+  .layer p { margin: 0; font-size: 14.5px; color: var(--ink-2); }
+  @media (max-width: 560px) { .layer { grid-template-columns: 1fr; gap: 4px; } }
+  .srcs { columns: 2; column-gap: 32px; font-size: 13.5px; padding-left: 18px; margin: 16px 0 0; }
+  .srcs li { margin-bottom: 7px; break-inside: avoid; }
+  @media (max-width: 640px) { .srcs { columns: 1; } }
+  footer { margin-top: 64px; padding-top: 20px; border-top: 1px solid var(--line); font-size: 13px; color: var(--ink-3); }
+</style>
+
+<div class="wrap">
+  <header class="hero">
+    <p class="eyebrow">R&amp;D Dossier · Phase 2 · August 2026</p>
+    <h1>How the recorder plugs into the agents</h1>
+    <p class="standfirst">Phase 1 settled what to build (a flight recorder for AI coding agents) and on what (Tauri 2.x + Rust). Phase 2 answers the integration question: <strong>plugin, MCP, or direct connection?</strong> Verdict: a Claude Code plugin carrying HTTP hooks into our local app, backed by transcript tailing. MCP is a query surface, not a capture surface. Plus the day-1 open-source setup.</p>
+
+    <div class="verdict">
+      <p><strong>Claude Code CLI (priority 1): ship a Claude Code plugin.</strong> One <code>/plugin install</code> wires hook events over HTTP to the desktop app. It touches no user config files, auto-updates, and can never block or slow the agent: dead endpoint means the hook is silently skipped.</p>
+      <p><strong>Claude Desktop (priority 2) comes mostly free.</strong> Its Code tab runs real Claude Code against the same <code>~/.claude</code> settings and transcripts, so the same plugin fires there. Only Desktop's plain chat needs a different trick (an MCP logging proxy).</p>
+      <p><strong>Open source from day 1: yes.</strong> AGPL-3.0, contributor agreement, signed releases with SBOMs. The auditor must itself be auditable.</p>
+    </div>
+  </header>
+
+  <section>
+    <p class="sec-label">01 · The decision</p>
+    <h2>Five candidate mechanisms, ranked</h2>
+    <div class="prose">
+      <p>All five ways of connecting were evaluated against the job: passive, reliable, real-time capture with session attribution, that can never break or slow the agent.</p>
+    </div>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Mechanism</th><th>Role</th><th>Why</th></tr></thead>
+      <tbody>
+        <tr><td>Plugin + HTTP hooks</td><td><span class="pill p1">Primary</span></td><td>Real-time push of every tool call (full bash command, file paths, session id, permission mode) straight to our localhost server. Hooks from plugins merge with user hooks, never clobber them. Non-2xx, timeout, or connection refused all mean "continue, don't block". Documented public API, one-command install, auto-updates.</td></tr>
+        <tr><td>Transcript tailing</td><td><span class="pill p2">Secondary</span></td><td>Watch <code>~/.claude/projects/**/*.jsonl</code> for backfill (sessions before install), tool outputs (stdout/stderr), and tamper evidence: activity in the transcript with no matching hook event means hooks were disabled. Format is undocumented and drifts, so parse defensively and treat as enrichment.</td></tr>
+        <tr><td>Local spool file</td><td><span class="pill p2">Secondary</span></td><td>A tiny async command hook appends NDJSON to a spool the app drains on launch. Covers the gap when the desktop app isn't running, since HTTP hooks fire once with no retry.</td></tr>
+        <tr><td>OpenTelemetry receiver</td><td><span class="pill p3">Fallback</span></td><td>The app can embed an OTLP endpoint; <code>OTEL_LOG_TOOL_DETAILS=1</code> exports full commands. But it needs env vars set before launch, truncates inputs, and is easy to unset. Offer it for orgs that already mandate OTel or block hooks.</td></tr>
+        <tr><td>MCP server</td><td><span class="pill no">Not for capture</span></td><td>MCP tools only fire when the model chooses to call them; there is no "subscribe to all activity" in MCP. Correct uses: a bundled MCP server so the agent/user can query the audit log ("what did you change yesterday?"), and a logging proxy for Claude Desktop chat (below).</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section>
+    <p class="sec-label">02 · Claude Code CLI</p>
+    <h2>The plugin: everything in one installable unit</h2>
+    <div class="prose">
+      <p>Claude Code's plugin system lets one package ship hooks, an MCP server, skills, and binaries together, distributed through a marketplace repo: users run <code>/plugin marketplace add ourorg/recorder</code> then <code>/plugin install</code>, and version bumps auto-update in the background. Prior art validates every piece: community projects already ship hook packs as plugins, and the popular hooks-observability template does exactly our POST-to-localhost pattern, just without the clean packaging.</p>
+      <p>The hook surface has grown to ~31 events. The recorder subscribes to the audit-relevant set:</p>
+    </div>
+    <pre><code>{
+  "hooks": {
+    "PreToolUse":  [{ "matcher": "*", "hooks": [{ "type": "http",
+      "url": "http://localhost:48620/ingest", "timeout": 5 }] }],
+    "PostToolUse": [ ... same ... ],
+    "PostToolUseFailure": [ ... ], "PermissionRequest": [ ... ],
+    "PermissionDenied": [ ... ], "UserPromptSubmit": [ ... ],
+    "SessionStart": [ ... ], "SessionEnd": [ ... ],
+    "SubagentStart": [ ... ], "SubagentStop": [ ... ],
+    "ConfigChange": [ ... ]   // fires when settings change: a tamper signal
+  }
+}</code></pre>
+    <div class="prose">
+      <p>Each event delivers <code>session_id</code>, <code>prompt_id</code>, <code>transcript_path</code>, <code>cwd</code>, <code>permission_mode</code>, and for tool events the full <code>tool_input</code> (the complete Bash command string, file paths for edits) plus <code>tool_use_id</code>, which cross-links to both the transcript and OpenTelemetry. That's the entire audit record, pushed in real time, including whether the user was running in bypass-permissions mode.</p>
+      <h3>What can break it, and the answer</h3>
+      <p>Enterprise managed settings can disable hooks (<code>disableAllHooks</code>, <code>allowManagedHooksOnly</code>) or restrict HTTP hook URLs. The flip side is an opportunity: orgs can deploy our hook block via <code>managed-settings.json</code>, which makes the recorder user-tamper-proof, exactly what a team tier sells. Hook payload contracts have had occasional regressions across Claude Code versions, but read-only observer hooks that just serialize stdin are minimally exposed; the breakages historically hit hooks that make allow/deny decisions.</p>
+    </div>
+  </section>
+
+  <section>
+    <p class="sec-label">03 · Claude Desktop</p>
+    <h2>Code tab is covered free; chat needs a proxy</h2>
+    <div class="stack">
+      <div class="layer"><span class="lname">Code tab</span><p>Runs real Claude Code against the same <code>~/.claude</code> settings and writes transcripts to the same <code>~/.claude/projects/</code>. Our plugin's hooks fire there unchanged. Zero extra work.</p></div>
+      <div class="layer"><span class="lname">Cowork / agent mode</span><p>Sessions run in an isolated VM but leave tailable local stores under <code>Application Support/Claude/local-agent-mode-sessions/</code> (macOS) and <code>%AppData%\Claude\</code> (Windows), including a per-session <code>audit.jsonl</code>. The app watches these paths.</p></div>
+      <div class="layer"><span class="lname">Plain chat</span><p>No hooks exist. The only local interception point is MCP: our installer can rewrite <code>claude_desktop_config.json</code> to route each configured MCP server through a logging stdio proxy (an established pattern), capturing every MCP tool call. Built-in non-MCP tools remain invisible locally; that's a platform limit, worth stating honestly in our docs.</p></div>
+      <div class="layer"><span class="lname">Query surface</span><p>A one-click <code>.mcpb</code> desktop extension ships our MCP query server, so users can ask Claude Desktop itself "what did my agents do today?" against the local audit database.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <p class="sec-label">04 · Beyond Claude</p>
+    <h2>Every major agent converged on the same hook shape</h2>
+    <div class="prose">
+      <p>Codex CLI shipped a hooks system in 2026 that is a near-clone of Claude Code's (same JSON-on-stdin, exit-code semantics). Cursor, Gemini CLI, Copilot CLI, and Windsurf all run their own variants; Cursor's has been proven for exactly our use case at enterprise scale (Elastic logged 13M+ tool-call events across 1,100 machines with one hook script). So the core carries one normalized event schema, and each agent gets a thin adapter combining its native hooks with native log tailing:</p>
+    </div>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Agent</th><th>Primary capture</th><th>Secondary</th><th>Order</th></tr></thead>
+      <tbody>
+        <tr><td>Claude Code</td><td>Plugin + HTTP hooks</td><td>Transcript JSONL + spool</td><td><span class="pill p1">v1</span></td></tr>
+        <tr><td>Codex CLI</td><td>Rollout tailing: <code>~/.codex/sessions/**/rollout-*.jsonl</code> is a complete replay log incl. sandbox + approval state per turn</td><td>Hooks in <code>~/.codex/hooks.json</code> for real-time; note hooks miss hosted tools, so logs lead here</td><td><span class="pill p1">v1.x</span></td></tr>
+        <tr><td>Cursor</td><td><code>~/.cursor/hooks.json</code> (covers IDE, CLI and Tab; Elastic-proven)</td><td><code>state.vscdb</code> SQLite backfill (mind the WAL file)</td><td><span class="pill p2">v2</span></td></tr>
+        <tr><td>Gemini CLI</td><td>Hooks in <code>~/.gemini/settings.json</code></td><td><code>~/.gemini/tmp/</code> logs + shadow-git checkpoints; or be its OTLP collector</td><td><span class="pill p2">v2</span></td></tr>
+        <tr><td>Copilot CLI</td><td><code>~/.copilot/hooks/*.json</code></td><td>Per-session <code>events.jsonl</code></td><td><span class="pill p2">v2</span></td></tr>
+        <tr><td>Windsurf / OpenCode / Aider</td><td>Hooks / TS plugin / history-file + git-commit watcher respectively</td><td>Native session stores</td><td><span class="pill p3">v3</span></td></tr>
+      </tbody>
+    </table></div>
+    <div class="prose">
+      <p>Agent-agnostic and always on, regardless of adapter: the package-manager watcher (lockfile diffing plus optional PATH shims for npm/pnpm/pip/uv/cargo), because package installs are under-reported by every agent's own tool events, and packages are the top attack vector from the phase-1 threat research.</p>
+    </div>
+
+    <h3>App architecture</h3>
+    <div class="stack">
+      <div class="layer"><span class="lname">Ingest server</span><p>Rust (axum) HTTP listener on a fixed localhost port receiving hook POSTs from all agents, plus an optional embedded OTLP receiver.</p></div>
+      <div class="layer"><span class="lname">Adapters</span><p>Per-agent modules: installer (merge hooks non-destructively, verify on startup since most agents read hook config only at launch), log tailer, format normalizer.</p></div>
+      <div class="layer"><span class="lname">Event store</span><p>Normalized events (<code>agent, session_id, ts, kind, payload, source, confidence</code>) in local SQLite. Local-only by default; that privacy stance is the product.</p></div>
+      <div class="layer"><span class="lname">Timeline UI</span><p>Tauri webview: per-session drill-down, package feed with threat-feed flagging, danger alerts, daily digest.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <p class="sec-label">05 · Open source, day 1</p>
+    <h2>The auditor must be auditable</h2>
+    <div class="prose">
+      <p>Every trust-critical endpoint tool that developers actually adopt is open source: LuLu (GPL), Portmaster (AGPL), Bitwarden (GPL/AGPL), Tailscale's client. A closed-source app that watches everything your AI does would be rejected by exactly its target audience. The recommended setup:</p>
+    </div>
+    <div class="cards">
+      <div class="card"><span class="tag">License</span><h4>AGPL-3.0 + CLA</h4><p>Free and fully open for every user; anyone turning it into a hosted clone must publish their changes (the Plausible/Portmaster shield). A contributor agreement from the first external PR preserves the right to dual-license a future commercial <code>ee/</code> team tier (the Cal.com/Bitwarden pattern). MIT is the wrong choice: Plausible got cloned commercially and switched away for this exact reason.</p></div>
+      <div class="card"><span class="tag">Supply chain</span><h4>Signed, attested releases</h4><p>GitHub Actions matrix build via tauri-action; notarized macOS builds + Azure Trusted Signing on Windows; Sigstore artifact attestations (SLSA); <code>cargo auditable</code> so every binary embeds its dependency tree; CycloneDX SBOMs as release assets; OpenSSF Scorecard running on schedule. Document reproducible-build status honestly (Rust/Tauri isn't fully there yet).</p></div>
+      <div class="card"><span class="tag">Repo + launch</span><h4>Monorepo, brew tap, Show HN</h4><p>Layout: <code>apps/desktop</code>, <code>crates/</code> (recorder core as a reusable library), <code>docs/</code> (Starlight), <code>packaging/</code>. SECURITY.md with private vulnerability reporting. Launch: Show HN with a "here's what it caught" demo, then r/ClaudeAI; own brew tap + winget manifest from day 1. Never paywall recording fidelity or safety signals; paid is team sync, SSO, and compliance exports only ($8-10/dev/mo territory).</p></div>
+    </div>
+    <div class="prose">
+      <h3>Naming note</h3>
+      <p>"Blackbox" is unusable (blackbox.ai, a 30M-user AI coding product, owns it). "Flight recorder" works as the descriptor but is generic as a brand (JDK Flight Recorder etc.). Before announcing any name: check GitHub org, npm, crates.io, domain, and a USPTO search. Coined names beat descriptive ones for later trademarking.</p>
+    </div>
+  </section>
+
+  <section>
+    <p class="sec-label">06 · Sources</p>
+    <h2>Key references</h2>
+    <ul class="srcs">
+      <li><a href="https://code.claude.com/docs/en/hooks">Claude Code hooks reference</a></li>
+      <li><a href="https://code.claude.com/docs/en/plugins">Claude Code plugins</a></li>
+      <li><a href="https://code.claude.com/docs/en/plugin-marketplaces">Plugin marketplaces</a></li>
+      <li><a href="https://code.claude.com/docs/en/monitoring-usage">Claude Code OpenTelemetry</a></li>
+      <li><a href="https://code.claude.com/docs/en/managed-settings">Managed settings (enterprise)</a></li>
+      <li><a href="https://github.com/modelcontextprotocol/mcpb">MCPB desktop extension bundles</a></li>
+      <li><a href="https://github.com/disler/claude-code-hooks-multi-agent-observability">disler: hooks-to-localhost observability (prior art)</a></li>
+      <li><a href="https://github.com/karanb192/claude-code-hooks">Hooks distributed as a plugin marketplace (prior art)</a></li>
+      <li><a href="https://github.com/P4ST4S/mcp-audit">mcp-audit: MCP logging proxy pattern</a></li>
+      <li><a href="https://github.com/simonw/claude-code-transcripts">simonw: transcript JSONL parsing</a></li>
+      <li><a href="https://learn.chatgpt.com/docs/hooks">Codex CLI hooks</a></li>
+      <li><a href="https://learn.chatgpt.com/docs/config-file/config-reference">Codex config reference</a></li>
+      <li><a href="https://cursor.com/docs/hooks">Cursor hooks</a></li>
+      <li><a href="https://www.elastic.co/security-labs/ai-coding-agent-audit-cursor-hooks">Elastic: auditing Cursor hooks at 13M events</a></li>
+      <li><a href="https://geminicli.com/docs/hooks/reference/">Gemini CLI hooks</a></li>
+      <li><a href="https://docs.github.com/en/copilot/concepts/agents/hooks">Copilot agent hooks</a></li>
+      <li><a href="https://docs.devin.ai/desktop/cascade/hooks">Windsurf Cascade hooks</a></li>
+      <li><a href="https://zed.dev/acp">Agent Client Protocol (Zed)</a></li>
+      <li><a href="https://plausible.io/blog/open-source-licenses">Plausible: why AGPL</a></li>
+      <li><a href="https://cal.com/blog/changing-to-agplv3-and-introducing-enterprise-edition">Cal.com: AGPL + ee/ pattern</a></li>
+      <li><a href="https://github.com/rust-secure-code/cargo-auditable">cargo-auditable</a></li>
+      <li><a href="https://v2.tauri.app/distribute/pipelines/github/">Tauri release pipeline</a></li>
+    </ul>
+  </section>
+
+  <footer>Phase 2, compiled Aug 29, 2026 from three parallel research sweeps (Claude Code/Desktop surfaces incl. live inspection of a v2.1.226 install, multi-agent surfaces, OSS standards). Phase 1 dossier covers threat landscape, competitors, and the Tauri decision.</footer>
+</div>

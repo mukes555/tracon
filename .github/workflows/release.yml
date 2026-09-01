@@ -1,0 +1,55 @@
+name: Release
+
+# Tag a version (git tag v0.1.0 && git push --tags) to build and attach
+# installers to a draft GitHub release for review before publishing.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+  # Sigstore attestations for supply-chain provenance.
+  id-token: write
+  attestations: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            args: --target aarch64-apple-darwin
+          - os: macos-latest
+            args: --target x86_64-apple-darwin
+          - os: windows-latest
+            args: ""
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+      - uses: Swatinem/rust-cache@v2
+      - run: pnpm install --frozen-lockfile
+
+      # Unsigned artifacts for now. Do NOT pass the APPLE_* secrets while
+      # they are unset: tauri-action treats an empty APPLE_CERTIFICATE as
+      # "signing requested" and fails importing the empty certificate.
+      # When certificates exist, add the APPLE_* env vars back here.
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          projectPath: apps/desktop
+          tagName: ${{ github.ref_name }}
+          releaseName: "Tracon ${{ github.ref_name }}"
+          releaseDraft: true
+          args: ${{ matrix.args }}

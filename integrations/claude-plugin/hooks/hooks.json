@@ -1,0 +1,110 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          { "type": "http", "url": "http://localhost:48620/ingest", "timeout": 5 }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          { "type": "http", "url": "http://localhost:48620/ingest", "timeout": 1 }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          { "type": "http", "url": "http://localhost:48620/ingest", "timeout": 5 }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          { "type": "http", "url": "http://localhost:48620/ingest", "timeout": 5 },
+          {
+            "type": "command",
+            "command": "sh -c 'mkdir -p \"$HOME/.tracon\"; { cat; printf \"\\n\"; } >> \"$HOME/.tracon/spool.ndjson\"'",
+            "async": true
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          { "type": "http", "url": "http://localhost:48620/ingest", "timeout": 5 },
+          {
+            "type": "command",
+            "command": "sh -c 'mkdir -p \"$HOME/.tracon\"; { cat; printf \"\\n\"; } >> \"$HOME/.tracon/spool.ndjson\"'",
+            "async": true
+          }
+        ]
+      }
+    ],
+    "PostToolUseFailure": [
+      {
+        "matcher": "*",
+        "hooks": [
+          { "type": "http", "url": "http://localhost:48620/ingest", "timeout": 5 }
+        ]
+      }
+    ],
+    "PermissionRequest": [
+      {
+        "matcher": "*",
+        "hooks": [
+          { "type": "http", "url": "http://localhost:48620/ingest", "timeout": 5 }
+        ]
+      }
+    ],
+    "PermissionDenied": [
+      {
+        "matcher": "*",
+        "hooks": [
+          { "type": "http", "url": "http://localhost:48620/ingest", "timeout": 5 }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "hooks": [
+          { "type": "http", "url": "http://localhost:48620/ingest", "timeout": 5 }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          { "type": "http", "url": "http://localhost:48620/ingest", "timeout": 5 }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          { "type": "http", "url": "http://localhost:48620/ingest", "timeout": 5 }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          { "type": "http", "url": "http://localhost:48620/ingest", "timeout": 5 }
+        ]
+      }
+    ],
+    "ConfigChange": [
+      {
+        "hooks": [
+          { "type": "http", "url": "http://localhost:48620/ingest", "timeout": 5 }
+        ]
+      }
+    ]
+  }
+}

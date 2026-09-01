@@ -1,0 +1,14 @@
+{
+  "name": "tracon",
+  "owner": {
+    "name": "Tracon",
+    "url": "https://github.com/tracon-dev/tracon"
+  },
+  "plugins": [
+    {
+      "name": "tracon",
+      "source": "./integrations/claude-plugin",
+      "description": "Streams Claude Code activity to the Tracon desktop recorder (local-only)."
+    }
+  ]
+}
