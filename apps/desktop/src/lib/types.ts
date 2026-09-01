@@ -77,8 +77,14 @@ export type View = "overview" | "timeline" | "packages" | "flagged" | "settings"
 
 export type KindFilter = "all" | "commands" | "files" | "packages" | "prompts" | "flagged";
 
-export type LiveAgent = {
+export type LiveSession = {
+  session_id: string;
   agent: string;
-  last_ts: string;
   cwd: string | null;
+  last_ts: string;
+  event_count: number;
+  flagged_count: number;
+  subagent_count: number;
+  last_prompt: string | null;
+  last_action: string | null;
 };

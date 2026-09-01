@@ -5,7 +5,7 @@ use tauri::tray::TrayIconBuilder;
 use tauri::Manager;
 use tracon_core::event::AgentEvent;
 use tracon_core::store::{
-    CaptureCount, ChangeToken, DayCount, LiveAgent, SessionSummary, Stats, Store,
+    CaptureCount, ChangeToken, DayCount, LiveSession, SessionSummary, Stats, Store,
 };
 
 struct AppState {
@@ -92,9 +92,9 @@ async fn search_events(
 }
 
 #[tauri::command]
-async fn live_agents(state: tauri::State<'_, AppState>) -> Result<Vec<LiveAgent>, String> {
+async fn live_sessions(state: tauri::State<'_, AppState>) -> Result<Vec<LiveSession>, String> {
     let store = state.store.clone();
-    run_query(move || store.live_agents_recent(3)).await
+    run_query(move || store.live_sessions_recent(5, 8)).await
 }
 
 /// Write a session's full event log as pretty JSON into ~/Downloads and
@@ -256,7 +256,7 @@ pub fn run() {
             package_events,
             flagged_events,
             ack_event,
-            live_agents,
+            live_sessions,
             search_events,
             session_thread,
             capture_status,

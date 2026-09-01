@@ -109,11 +109,21 @@ pub struct DayCount {
     pub flagged: i64,
 }
 
+/// One row of the dashboard's live board: a session with recent activity,
+/// carrying enough context to understand what the agent is doing right now.
 #[derive(Debug, Serialize)]
-pub struct LiveAgent {
+pub struct LiveSession {
+    pub session_id: String,
     pub agent: String,
-    pub last_ts: String,
     pub cwd: Option<String>,
+    pub last_ts: String,
+    /// Events and flags inside the live window, not session totals.
+    pub event_count: i64,
+    pub flagged_count: i64,
+    /// Task tool calls in the window: the agent spawning subagents.
+    pub subagent_count: i64,
+    pub last_prompt: Option<String>,
+    pub last_action: Option<String>,
 }
 
 impl Store {
@@ -329,35 +339,52 @@ impl Store {
         Ok(())
     }
 
-    /// Agents with events inside the cutoff window, with their latest activity.
-    pub fn live_agents(&self, cutoff_ts: &str) -> Result<Vec<LiveAgent>> {
+    /// Sessions with events inside the cutoff window, newest first: the
+    /// dashboard's live board. The prompt and last action look across the
+    /// whole session (not just the window) so a long running task keeps its
+    /// context line. Works identically for CLI and desktop agents; both
+    /// arrive through the same hooks and transcript tailing.
+    pub fn live_sessions(&self, cutoff_ts: &str, limit: i64) -> Result<Vec<LiveSession>> {
         let conn = self.read_conn();
         let mut stmt = conn.prepare(
-            "SELECT agent, MAX(ts),
-                    (SELECT cwd FROM events e2
-                     WHERE e2.agent = events.agent AND e2.ts >= ?1 AND e2.cwd IS NOT NULL
-                     ORDER BY e2.ts DESC LIMIT 1)
+            "SELECT session_id, agent, MAX(COALESCE(cwd, '')), MAX(ts), COUNT(*),
+                    SUM(CASE WHEN flag IS NOT NULL THEN 1 ELSE 0 END),
+                    SUM(CASE WHEN tool_name = 'Task' THEN 1 ELSE 0 END),
+                    (SELECT e2.summary FROM events e2
+                     WHERE e2.session_id = events.session_id AND e2.kind = 'prompt'
+                     ORDER BY e2.ts DESC, e2.id DESC LIMIT 1),
+                    (SELECT e3.summary FROM events e3
+                     WHERE e3.session_id = events.session_id AND e3.kind = 'tool_call'
+                     ORDER BY e3.ts DESC, e3.id DESC LIMIT 1)
              FROM events
              WHERE ts >= ?1 AND agent != 'system'
-             GROUP BY agent
-             ORDER BY MAX(ts) DESC",
+             GROUP BY session_id, agent
+             ORDER BY MAX(ts) DESC
+             LIMIT ?2",
         )?;
-        let rows = stmt.query_map(params![cutoff_ts], |row| {
-            Ok(LiveAgent {
-                agent: row.get(0)?,
-                last_ts: row.get(1)?,
-                cwd: row.get(2)?,
+        let rows = stmt.query_map(params![cutoff_ts, limit], |row| {
+            let cwd: String = row.get(2)?;
+            Ok(LiveSession {
+                session_id: row.get(0)?,
+                agent: row.get(1)?,
+                cwd: if cwd.is_empty() { None } else { Some(cwd) },
+                last_ts: row.get(3)?,
+                event_count: row.get(4)?,
+                flagged_count: row.get::<_, Option<i64>>(5)?.unwrap_or(0),
+                subagent_count: row.get::<_, Option<i64>>(6)?.unwrap_or(0),
+                last_prompt: row.get(7)?,
+                last_action: row.get(8)?,
             })
         })?;
         Ok(rows.collect::<std::result::Result<Vec<_>, _>>()?)
     }
 
-    /// live_agents with the cutoff computed here (now minus `minutes`).
-    pub fn live_agents_recent(&self, minutes: i64) -> Result<Vec<LiveAgent>> {
+    /// live_sessions with the cutoff computed here (now minus `minutes`).
+    pub fn live_sessions_recent(&self, minutes: i64, limit: i64) -> Result<Vec<LiveSession>> {
         let cutoff = (time::OffsetDateTime::now_utc() - time::Duration::minutes(minutes))
             .format(&time::format_description::well_known::Rfc3339)
             .unwrap_or_default();
-        self.live_agents(&cutoff)
+        self.live_sessions(&cutoff, limit)
     }
 
     /// True while the user has paused capture from the tray.

@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { AgentEvent, CaptureStatus, ChangeToken, DayCount, LiveAgent, SessionSummary, Stats, ThreadMessage } from "./types";
+import type { AgentEvent, CaptureStatus, ChangeToken, DayCount, LiveSession, SessionSummary, Stats, ThreadMessage } from "./types";
 
 export const api = {
   changeToken: () => invoke<ChangeToken>("change_token"),
@@ -9,7 +9,7 @@ export const api = {
   packageEvents: () => invoke<AgentEvent[]>("package_events"),
   flaggedEvents: (acked = false) => invoke<AgentEvent[]>("flagged_events", { acked }),
   ackEvent: (id: number, acked: boolean) => invoke("ack_event", { id, acked }),
-  liveAgents: () => invoke<LiveAgent[]>("live_agents"),
+  liveSessions: () => invoke<LiveSession[]>("live_sessions"),
   searchEvents: (query: string) => invoke<AgentEvent[]>("search_events", { query }),
   sessionThread: (sessionId: string) => invoke<ThreadMessage[]>("session_thread", { sessionId }),
   captureStatus: () => invoke<CaptureStatus>("capture_status"),

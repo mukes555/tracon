@@ -8,7 +8,7 @@ import type {
   CaptureStatus,
   DayCount,
   KindFilter,
-  LiveAgent,
+  LiveSession,
   SessionSummary,
   Stats,
   View,
@@ -36,7 +36,7 @@ function App() {
   const [packages, setPackages] = useState<AgentEvent[]>([]);
   const [flagged, setFlagged] = useState<AgentEvent[]>([]);
   const [days, setDays] = useState<DayCount[]>([]);
-  const [live, setLive] = useState<LiveAgent[]>([]);
+  const [live, setLive] = useState<LiveSession[]>([]);
   const [capture, setCapture] = useState<CaptureStatus | null>(null);
   const [intelEnabled, setIntelEnabled] = useState<boolean | null>(null);
   const [query, setQuery] = useState("");
@@ -82,15 +82,6 @@ function App() {
     setSelected(sessionId);
     setDetail(null);
   }, []);
-  // Live-now rows: sessions are sorted newest-first, so the first match is
-  // the agent's current session.
-  const openAgentTimeline = useCallback(
-    (agent: string) => {
-      const current = sessions.find((s) => s.agent === agent);
-      if (current) openSessionTimeline(current.session_id);
-    },
-    [sessions, openSessionTimeline],
-  );
   const ackQuick = useCallback(
     async (event: AgentEvent, acked = true) => {
       if (event.id !== undefined) {
@@ -147,7 +138,7 @@ function App() {
         if (view === "overview") {
           setCapture(await api.captureStatus());
           setDays(await api.eventsPerDay());
-          setLive(await api.liveAgents());
+          setLive(await api.liveSessions());
           setFlagged(await api.flaggedEvents());
           setPackages(await api.packageEvents());
         }
@@ -227,11 +218,11 @@ function App() {
           capture={capture}
           recentFlagged={flagged}
           recentPackages={packages}
-          liveAgents={live}
+          liveSessions={live}
           onNavigate={setView}
           onOpenEvent={openDetail}
           onAck={ackQuick}
-          onOpenAgent={openAgentTimeline}
+          onOpenSession={openSessionTimeline}
         />
       )}
 

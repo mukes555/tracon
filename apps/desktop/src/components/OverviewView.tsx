@@ -1,6 +1,10 @@
 import { useState } from "react";
-import type { AgentEvent, CaptureStatus, DayCount, LiveAgent, Stats, View } from "../lib/types";
+import type { AgentEvent, CaptureStatus, DayCount, LiveSession, Stats, View } from "../lib/types";
 import { agentLabel, projectName, relTime, timeOf } from "../lib/format";
+
+// Persisted UI preference: the live board's expanded detail mode. A missing
+// or blocked localStorage silently falls back to the compact view.
+const LIVE_DETAILS_KEY = "tracon-live-details";
 
 export function OverviewView(props: {
   stats: Stats | null;
@@ -8,13 +12,29 @@ export function OverviewView(props: {
   capture: CaptureStatus | null;
   recentFlagged: AgentEvent[];
   recentPackages: AgentEvent[];
-  liveAgents: LiveAgent[];
+  liveSessions: LiveSession[];
   onNavigate: (v: View) => void;
   onOpenEvent: (event: AgentEvent) => void;
   onAck: (event: AgentEvent) => void;
-  onOpenAgent: (agent: string) => void;
+  onOpenSession: (sessionId: string) => void;
 }) {
   const { stats } = props;
+  const [liveDetails, setLiveDetails] = useState(() => {
+    try {
+      return localStorage.getItem(LIVE_DETAILS_KEY) === "true";
+    } catch {
+      return false;
+    }
+  });
+  const toggleLiveDetails = () => {
+    const next = !liveDetails;
+    setLiveDetails(next);
+    try {
+      localStorage.setItem(LIVE_DETAILS_KEY, String(next));
+    } catch {
+      // preference just will not persist
+    }
+  };
   return (
     <main className="view overview">
       <header className="view-head">
@@ -22,17 +42,42 @@ export function OverviewView(props: {
         <p className="view-sub">What your AI agents did on this machine.</p>
       </header>
 
-      {props.liveAgents.length > 0 && (
+      {props.liveSessions.length > 0 && (
         <section className="card live-card">
-          <h3>Live now</h3>
+          <div className="card-head">
+            <h3>Live now</h3>
+            <label className="live-toggle">
+              <input type="checkbox" checked={liveDetails} onChange={toggleLiveDetails} />
+              details
+            </label>
+          </div>
           <ul className="live-list">
-            {props.liveAgents.map((a) => (
-              <li key={a.agent}>
-                <button className="live-row" onClick={() => props.onOpenAgent(a.agent)}>
+            {props.liveSessions.map((s) => (
+              <li key={s.session_id}>
+                <button className="live-row" onClick={() => props.onOpenSession(s.session_id)}>
                   <span className="pulse-dot" />
-                  <span className="live-agent">{agentLabel(a.agent)}</span>
-                  <span className="live-meta">
-                    {projectName(a.cwd)} · active {relTime(a.last_ts)}
+                  <span className="live-main">
+                    <span className="live-head">
+                      <span className="live-agent">{agentLabel(s.agent)}</span>
+                      <span className="live-project">{projectName(s.cwd)}</span>
+                      {s.flagged_count > 0 && (
+                        <span className="flag-chip">{s.flagged_count} flagged</span>
+                      )}
+                      {s.subagent_count > 0 && (
+                        <span className="live-sub">{s.subagent_count} subagents</span>
+                      )}
+                      <span className="live-meta">active {relTime(s.last_ts)}</span>
+                    </span>
+                    {s.last_prompt && <span className="live-prompt">{s.last_prompt}</span>}
+                    {liveDetails && s.last_action && (
+                      <span className="live-action">{s.last_action}</span>
+                    )}
+                    {liveDetails && (
+                      <span className="live-detail-meta">
+                        {s.event_count} events in the last 5 min · session{" "}
+                        {s.session_id.slice(0, 8)}
+                      </span>
+                    )}
                   </span>
                 </button>
               </li>
