@@ -122,6 +122,9 @@ pub struct LiveSession {
     pub flagged_count: i64,
     /// Task tool calls in the window: the agent spawning subagents.
     pub subagent_count: i64,
+    /// Names of the most recent subagents (subagent_type from the Task
+    /// payload, or its description), deduplicated, newest first, max 3.
+    pub subagents: Vec<String>,
     pub last_prompt: Option<String>,
     pub last_action: Option<String>,
 }
@@ -372,11 +375,19 @@ impl Store {
                 event_count: row.get(4)?,
                 flagged_count: row.get::<_, Option<i64>>(5)?.unwrap_or(0),
                 subagent_count: row.get::<_, Option<i64>>(6)?.unwrap_or(0),
+                subagents: Vec::new(),
                 last_prompt: row.get(7)?,
                 last_action: row.get(8)?,
             })
         })?;
-        Ok(rows.collect::<std::result::Result<Vec<_>, _>>()?)
+        let mut sessions: Vec<LiveSession> = rows.collect::<std::result::Result<Vec<_>, _>>()?;
+        drop(stmt);
+        for session in &mut sessions {
+            if session.subagent_count > 0 {
+                session.subagents = subagent_labels(&conn, &session.session_id, cutoff_ts);
+            }
+        }
+        Ok(sessions)
     }
 
     /// live_sessions with the cutoff computed here (now minus `minutes`).
@@ -654,6 +665,49 @@ impl Store {
         })?;
         Ok(rows.collect::<std::result::Result<Vec<_>, _>>()?)
     }
+}
+
+/// Names of the subagents a session spawned recently, read from Task tool
+/// call payloads. Hook payloads carry the input under tool_input, transcript
+/// rows under input; both are tried so tailed sessions work too.
+fn subagent_labels(conn: &Connection, session_id: &str, cutoff_ts: &str) -> Vec<String> {
+    let Ok(mut stmt) = conn.prepare(
+        "SELECT payload FROM events
+         WHERE session_id = ?1 AND tool_name = 'Task' AND ts >= ?2
+         ORDER BY ts DESC, id DESC
+         LIMIT 8",
+    ) else {
+        return Vec::new();
+    };
+    let Ok(rows) = stmt.query_map(params![session_id, cutoff_ts], |row| {
+        row.get::<_, String>(0)
+    }) else {
+        return Vec::new();
+    };
+
+    let mut labels: Vec<String> = Vec::new();
+    for raw in rows.flatten() {
+        let Some(label) = task_label(&raw) else {
+            continue;
+        };
+        if !labels.contains(&label) {
+            labels.push(label);
+        }
+        if labels.len() >= 3 {
+            break;
+        }
+    }
+    labels
+}
+
+fn task_label(raw_payload: &str) -> Option<String> {
+    let value: serde_json::Value = serde_json::from_str(raw_payload).ok()?;
+    let input = value.get("tool_input").or_else(|| value.get("input"))?;
+    input
+        .get("subagent_type")
+        .and_then(|v| v.as_str())
+        .or_else(|| input.get("description").and_then(|v| v.as_str()))
+        .map(String::from)
 }
 
 fn today_utc() -> String {

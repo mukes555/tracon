@@ -85,6 +85,7 @@ export type LiveSession = {
   event_count: number;
   flagged_count: number;
   subagent_count: number;
+  subagents: string[];
   last_prompt: string | null;
   last_action: string | null;
 };

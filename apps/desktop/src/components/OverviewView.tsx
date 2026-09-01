@@ -47,7 +47,13 @@ export function OverviewView(props: {
           <div className="card-head">
             <h3>Live now</h3>
             <label className="live-toggle">
-              <input type="checkbox" checked={liveDetails} onChange={toggleLiveDetails} />
+              <input
+                type="checkbox"
+                className="switch-input"
+                checked={liveDetails}
+                onChange={toggleLiveDetails}
+              />
+              <span className="switch" aria-hidden="true" />
               details
             </label>
           </div>
@@ -64,11 +70,20 @@ export function OverviewView(props: {
                         <span className="flag-chip">{s.flagged_count} flagged</span>
                       )}
                       {s.subagent_count > 0 && (
-                        <span className="live-sub">{s.subagent_count} subagents</span>
+                        <span className="live-sub">
+                          {s.subagent_count} {s.subagent_count === 1 ? "subagent" : "subagents"}
+                        </span>
                       )}
                       <span className="live-meta">active {relTime(s.last_ts)}</span>
                     </span>
                     {s.last_prompt && <span className="live-prompt">{s.last_prompt}</span>}
+                    {liveDetails && s.subagents.length > 0 && (
+                      <span className="live-subagents">
+                        running: {s.subagents.join(" · ")}
+                        {s.subagent_count > s.subagents.length &&
+                          ` · +${s.subagent_count - s.subagents.length} more`}
+                      </span>
+                    )}
                     {liveDetails && s.last_action && (
                       <span className="live-action">{s.last_action}</span>
                     )}
