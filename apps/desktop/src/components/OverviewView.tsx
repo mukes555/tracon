@@ -78,18 +78,14 @@ export function OverviewView(props: {
                     </span>
                     {s.last_prompt && <span className="live-prompt">{s.last_prompt}</span>}
                     {liveDetails && s.subagents.length > 0 && (
-                      <span className="live-subagents">
-                        running: {s.subagents.join(" · ")}
-                        {s.subagent_count > s.subagents.length &&
-                          ` · +${s.subagent_count - s.subagents.length} more`}
-                      </span>
+                      <span className="live-subagents">running: {s.subagents.join(" · ")}</span>
                     )}
                     {liveDetails && s.last_action && (
                       <span className="live-action">{s.last_action}</span>
                     )}
                     {liveDetails && (
                       <span className="live-detail-meta">
-                        {s.event_count} events in the last 5 min · session{" "}
+                        {s.event_count} events in the live window · session{" "}
                         {s.session_id.slice(0, 8)}
                       </span>
                     )}

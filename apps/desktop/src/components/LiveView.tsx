@@ -34,7 +34,6 @@ export function LiveView(props: {
         <div className="cam-grid">
           {props.sessions.map((s) => {
             const tail = props.tails[s.session_id] ?? [];
-            const overflow = s.subagent_count - s.subagents.length;
             return (
               <section
                 key={s.session_id}
@@ -52,10 +51,7 @@ export function LiveView(props: {
 
                 {s.last_prompt && <p className="cam-task">{s.last_prompt}</p>}
                 {s.subagents.length > 0 && (
-                  <p className="cam-subagents">
-                    running: {s.subagents.join(" · ")}
-                    {overflow > 0 && ` · +${overflow} more`}
-                  </p>
+                  <p className="cam-subagents">running: {s.subagents.join(" · ")}</p>
                 )}
 
                 <ul className="cam-screen">

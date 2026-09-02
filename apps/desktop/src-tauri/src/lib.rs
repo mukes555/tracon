@@ -94,7 +94,7 @@ async fn search_events(
 #[tauri::command]
 async fn live_sessions(state: tauri::State<'_, AppState>) -> Result<Vec<LiveSession>, String> {
     let store = state.store.clone();
-    run_query(move || store.live_sessions_recent(5, 8)).await
+    run_query(move || store.live_sessions_recent(8)).await
 }
 
 /// A short recent tail of one session, for the Live page's monitor feeds.

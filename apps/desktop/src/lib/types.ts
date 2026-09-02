@@ -43,6 +43,7 @@ export type ChangeToken = {
   max_id: number;
   open_flags: number;
   acked_flags: number;
+  live_sessions: number;
 };
 
 export type ThreadMessage = {

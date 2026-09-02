@@ -133,33 +133,41 @@ function App() {
   useEffect(() => {
     const refresh = async () => {
       try {
-        // The live board must decay on its own (sessions drop out after
-        // five quiet minutes with no new events to bump the token), so it
-        // refreshes every poll while watched.
-        if (view === "live") {
-          setLive(await api.liveSessions());
-        }
+        // The token also carries the live session count, so a session aging
+        // out of the live window is itself a token change; the board and
+        // nav badge decay on every view without extra polling.
         const token = await api.changeToken();
-        const signature = `${view}|${selected}|${token.max_id}|${token.open_flags}|${token.acked_flags}`;
+        const signature = `${view}|${selected}|${token.max_id}|${token.open_flags}|${token.acked_flags}|${token.live_sessions}`;
         if (signature === lastSignature.current) return;
         lastSignature.current = signature;
 
-        setStats(await api.stats());
-        setSessions(await api.sessions());
+        // Independent reads run as one parallel round instead of a chain.
+        const [nextStats, nextSessions, nextLive] = await Promise.all([
+          api.stats(),
+          api.sessions(),
+          api.liveSessions(),
+        ]);
+        setStats(nextStats);
+        setSessions(nextSessions);
+        setLive(nextLive);
+
         if (view === "overview") {
-          setCapture(await api.captureStatus());
-          setDays(await api.eventsPerDay());
-          setLive(await api.liveSessions());
-          setFlagged(await api.flaggedEvents());
-          setPackages(await api.packageEvents());
+          const [nextCapture, nextDays, nextFlagged, nextPackages] = await Promise.all([
+            api.captureStatus(),
+            api.eventsPerDay(),
+            api.flaggedEvents(),
+            api.packageEvents(),
+          ]);
+          setCapture(nextCapture);
+          setDays(nextDays);
+          setFlagged(nextFlagged);
+          setPackages(nextPackages);
         }
         if (view === "packages") setPackages(await api.packageEvents());
         if (view === "flagged") setFlagged(await api.flaggedEvents());
         if (view === "live") {
-          const sessions = await api.liveSessions();
-          setLive(sessions);
           const pairs = await Promise.all(
-            sessions.map(async (s) => [s.session_id, await api.sessionTail(s.session_id)] as const),
+            nextLive.map(async (s) => [s.session_id, await api.sessionTail(s.session_id)] as const),
           );
           setTails(Object.fromEntries(pairs));
         }

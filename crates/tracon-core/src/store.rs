@@ -93,13 +93,21 @@ pub struct Stats {
     pub packages_today: i64,
 }
 
+/// How long a session counts as live after its last event. One constant,
+/// shared by the live queries and the change token, and deliberately not
+/// repeated in UI copy.
+pub const LIVE_WINDOW_MINUTES: i64 = 5;
+
 /// Cheap change signal for UI polling: new events bump max_id, triage moves
-/// flags between the open and acked counts, flag backfill bumps open_flags.
+/// flags between the open and acked counts, and live_sessions changes when
+/// a session enters or ages out of the live window, so decay itself is a
+/// token change.
 #[derive(Debug, Serialize, PartialEq)]
 pub struct ChangeToken {
     pub max_id: i64,
     pub open_flags: i64,
     pub acked_flags: i64,
+    pub live_sessions: i64,
 }
 
 #[derive(Debug, Serialize)]
@@ -194,9 +202,13 @@ impl Store {
     pub fn sessions(&self) -> Result<Vec<SessionSummary>> {
         let conn = self.read_conn();
         let mut stmt = conn.prepare(
-            "SELECT session_id, agent, MAX(COALESCE(cwd, '')), MIN(ts), MAX(ts), COUNT(*),
+            "SELECT session_id, agent,
+                    (SELECT e1.cwd FROM events e1
+                     WHERE e1.session_id = events.session_id AND e1.cwd IS NOT NULL
+                     ORDER BY e1.ts DESC, e1.id DESC LIMIT 1),
+                    MIN(ts), MAX(ts), COUNT(*),
                     SUM(CASE WHEN kind = 'tool_call' AND tool_name IN ('Bash', 'shell') THEN 1 ELSE 0 END),
-                    SUM(CASE WHEN flag IS NOT NULL THEN 1 ELSE 0 END),
+                    SUM(CASE WHEN flag IS NOT NULL AND ack = 0 THEN 1 ELSE 0 END),
                     SUM(CASE WHEN kind = 'tool_call' AND source = 'hook' THEN 1 ELSE 0 END),
                     SUM(CASE WHEN kind = 'tool_call' AND source = 'log_tail' THEN 1 ELSE 0 END),
                     (SELECT e2.summary FROM events e2
@@ -208,11 +220,10 @@ impl Store {
              LIMIT 200",
         )?;
         let rows = stmt.query_map([], |row| {
-            let cwd: String = row.get(2)?;
             Ok(SessionSummary {
                 session_id: row.get(0)?,
                 agent: row.get(1)?,
-                cwd: if cwd.is_empty() { None } else { Some(cwd) },
+                cwd: row.get(2)?,
                 started_at: row.get(3)?,
                 last_at: row.get(4)?,
                 event_count: row.get(5)?,
@@ -349,28 +360,37 @@ impl Store {
     /// arrive through the same hooks and transcript tailing.
     pub fn live_sessions(&self, cutoff_ts: &str, limit: i64) -> Result<Vec<LiveSession>> {
         let conn = self.read_conn();
+        // INDEXED BY forces the ts range scan; left alone SQLite picks the
+        // session index and walks the whole table for a five minute window.
+        // cwd comes from the latest row that has one (MAX would pick the
+        // lexicographically greatest path), flags count open ones only, and
+        // the Task count is kind guarded so a call's Pre and Post rows do
+        // not count as two subagents.
         let mut stmt = conn.prepare(
-            "SELECT session_id, agent, MAX(COALESCE(cwd, '')), MAX(ts), COUNT(*),
-                    SUM(CASE WHEN flag IS NOT NULL THEN 1 ELSE 0 END),
-                    SUM(CASE WHEN tool_name = 'Task' THEN 1 ELSE 0 END),
+            "SELECT session_id, agent,
+                    (SELECT e1.cwd FROM events e1
+                     WHERE e1.session_id = events.session_id AND e1.cwd IS NOT NULL
+                     ORDER BY e1.ts DESC, e1.id DESC LIMIT 1),
+                    MAX(ts), COUNT(*),
+                    SUM(CASE WHEN flag IS NOT NULL AND ack = 0 THEN 1 ELSE 0 END),
+                    SUM(CASE WHEN kind = 'tool_call' AND tool_name = 'Task' THEN 1 ELSE 0 END),
                     (SELECT e2.summary FROM events e2
                      WHERE e2.session_id = events.session_id AND e2.kind = 'prompt'
                      ORDER BY e2.ts DESC, e2.id DESC LIMIT 1),
                     (SELECT e3.summary FROM events e3
                      WHERE e3.session_id = events.session_id AND e3.kind = 'tool_call'
                      ORDER BY e3.ts DESC, e3.id DESC LIMIT 1)
-             FROM events
+             FROM events INDEXED BY idx_events_ts
              WHERE ts >= ?1 AND agent != 'system'
              GROUP BY session_id, agent
              ORDER BY MAX(ts) DESC
              LIMIT ?2",
         )?;
         let rows = stmt.query_map(params![cutoff_ts, limit], |row| {
-            let cwd: String = row.get(2)?;
             Ok(LiveSession {
                 session_id: row.get(0)?,
                 agent: row.get(1)?,
-                cwd: if cwd.is_empty() { None } else { Some(cwd) },
+                cwd: row.get(2)?,
                 last_ts: row.get(3)?,
                 event_count: row.get(4)?,
                 flagged_count: row.get::<_, Option<i64>>(5)?.unwrap_or(0),
@@ -390,12 +410,9 @@ impl Store {
         Ok(sessions)
     }
 
-    /// live_sessions with the cutoff computed here (now minus `minutes`).
-    pub fn live_sessions_recent(&self, minutes: i64, limit: i64) -> Result<Vec<LiveSession>> {
-        let cutoff = (time::OffsetDateTime::now_utc() - time::Duration::minutes(minutes))
-            .format(&time::format_description::well_known::Rfc3339)
-            .unwrap_or_default();
-        self.live_sessions(&cutoff, limit)
+    /// live_sessions over the standard live window.
+    pub fn live_sessions_recent(&self, limit: i64) -> Result<Vec<LiveSession>> {
+        self.live_sessions(&live_cutoff(), limit)
     }
 
     /// True while the user has paused capture from the tray.
@@ -578,17 +595,21 @@ impl Store {
     /// poll it every few seconds instead of running the full stats scan.
     pub fn change_token(&self) -> Result<ChangeToken> {
         let conn = self.read_conn();
+        let cutoff = live_cutoff();
         let token = conn.query_row(
             "SELECT COALESCE(MAX(id), 0),
                     (SELECT COUNT(*) FROM events WHERE flag IS NOT NULL AND ack = 0),
-                    (SELECT COUNT(*) FROM events WHERE flag IS NOT NULL AND ack = 1)
+                    (SELECT COUNT(*) FROM events WHERE flag IS NOT NULL AND ack = 1),
+                    (SELECT COUNT(DISTINCT session_id) FROM events INDEXED BY idx_events_ts
+                     WHERE ts >= ?1 AND agent != 'system')
              FROM events",
-            [],
+            params![cutoff],
             |row| {
                 Ok(ChangeToken {
                     max_id: row.get(0)?,
                     open_flags: row.get(1)?,
                     acked_flags: row.get(2)?,
+                    live_sessions: row.get(3)?,
                 })
             },
         )?;
@@ -667,29 +688,40 @@ impl Store {
     }
 }
 
+/// The cutoff timestamp for the live window, RFC 3339 UTC.
+fn live_cutoff() -> String {
+    (time::OffsetDateTime::now_utc() - time::Duration::minutes(LIVE_WINDOW_MINUTES))
+        .format(&time::format_description::well_known::Rfc3339)
+        .unwrap_or_default()
+}
+
 /// Names of the subagents a session spawned recently, read from Task tool
-/// call payloads. Hook payloads carry the input under tool_input, transcript
-/// rows under input; both are tried so tailed sessions work too.
+/// call payloads. json_extract keeps the large payloads inside SQLite; only
+/// short labels cross into Rust. Hook payloads nest the input under
+/// tool_input, transcript rows under input; both paths are tried so tailed
+/// sessions work too. The kind guard skips each call's result row.
 fn subagent_labels(conn: &Connection, session_id: &str, cutoff_ts: &str) -> Vec<String> {
     let Ok(mut stmt) = conn.prepare(
-        "SELECT payload FROM events
-         WHERE session_id = ?1 AND tool_name = 'Task' AND ts >= ?2
+        "SELECT COALESCE(
+                  json_extract(payload, '$.tool_input.subagent_type'),
+                  json_extract(payload, '$.input.subagent_type'),
+                  json_extract(payload, '$.tool_input.description'),
+                  json_extract(payload, '$.input.description'))
+         FROM events
+         WHERE session_id = ?1 AND kind = 'tool_call' AND tool_name = 'Task' AND ts >= ?2
          ORDER BY ts DESC, id DESC
          LIMIT 8",
     ) else {
         return Vec::new();
     };
     let Ok(rows) = stmt.query_map(params![session_id, cutoff_ts], |row| {
-        row.get::<_, String>(0)
+        row.get::<_, Option<String>>(0)
     }) else {
         return Vec::new();
     };
 
     let mut labels: Vec<String> = Vec::new();
-    for raw in rows.flatten() {
-        let Some(label) = task_label(&raw) else {
-            continue;
-        };
+    for label in rows.flatten().flatten() {
         if !labels.contains(&label) {
             labels.push(label);
         }
@@ -698,16 +730,6 @@ fn subagent_labels(conn: &Connection, session_id: &str, cutoff_ts: &str) -> Vec<
         }
     }
     labels
-}
-
-fn task_label(raw_payload: &str) -> Option<String> {
-    let value: serde_json::Value = serde_json::from_str(raw_payload).ok()?;
-    let input = value.get("tool_input").or_else(|| value.get("input"))?;
-    input
-        .get("subagent_type")
-        .and_then(|v| v.as_str())
-        .or_else(|| input.get("description").and_then(|v| v.as_str()))
-        .map(String::from)
 }
 
 fn today_utc() -> String {
@@ -745,6 +767,12 @@ fn migrate(conn: &Connection) -> Result<()> {
     // column exists on databases from older builds.
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_events_flagged ON events(ts) WHERE flag IS NOT NULL",
+        [],
+    )?;
+    // Mirrors idx_events_prompt: the live board's last-action subquery needs
+    // the same one-probe lookup for tool calls.
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_events_tool_call ON events(session_id, ts) WHERE kind = 'tool_call'",
         [],
     )?;
     Ok(())
