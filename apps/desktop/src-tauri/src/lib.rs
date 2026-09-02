@@ -97,6 +97,16 @@ async fn live_sessions(state: tauri::State<'_, AppState>) -> Result<Vec<LiveSess
     run_query(move || store.live_sessions_recent(5, 8)).await
 }
 
+/// A short recent tail of one session, for the Live page's monitor feeds.
+#[tauri::command]
+async fn session_tail(
+    session_id: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<Vec<AgentEvent>, String> {
+    let store = state.store.clone();
+    run_query(move || store.events_for_session_lite(&session_id, 12)).await
+}
+
 /// Write a session's full event log as pretty JSON into ~/Downloads and
 /// return the path. Local file only; nothing leaves the machine.
 #[tauri::command]
@@ -257,6 +267,7 @@ pub fn run() {
             flagged_events,
             ack_event,
             live_sessions,
+            session_tail,
             search_events,
             session_thread,
             capture_status,

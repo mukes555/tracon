@@ -73,7 +73,7 @@ export type CaptureStatus = {
   counts: CaptureCount[];
 };
 
-export type View = "overview" | "timeline" | "packages" | "flagged" | "settings";
+export type View = "overview" | "live" | "timeline" | "packages" | "flagged" | "settings";
 
 export type KindFilter = "all" | "commands" | "files" | "packages" | "prompts" | "flagged";
 

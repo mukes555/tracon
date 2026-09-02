@@ -11,6 +11,7 @@ type Item =
 
 const NAV_ITEMS: { label: string; view: View }[] = [
   { label: "Go to Overview", view: "overview" },
+  { label: "Go to Live", view: "live" },
   { label: "Go to Timeline", view: "timeline" },
   { label: "Go to Packages", view: "packages" },
   { label: "Go to Flagged", view: "flagged" },

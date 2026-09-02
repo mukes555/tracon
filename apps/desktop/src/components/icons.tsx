@@ -32,6 +32,14 @@ export const TraconMark = (p: IconProps) => {
   );
 };
 
+export const CamIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <rect x="1.8" y="4" width="9" height="7.4" rx="1.8" />
+    <path d="M10.8 6.8 L14.2 5 V11.5 L10.8 9.7" />
+    <circle cx="4.9" cy="6.9" r="0.9" fill="currentColor" stroke="none" />
+  </Svg>
+);
+
 export const RadarIcon = (p: IconProps) => (
   <Svg {...p}>
     <circle cx="8" cy="8" r="6.2" />

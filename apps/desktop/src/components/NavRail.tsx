@@ -1,8 +1,9 @@
 import type { Stats, View } from "../lib/types";
-import { BoxIcon, FlagIcon, GearIcon, ListIcon, RadarIcon, TraconMark } from "./icons";
+import { BoxIcon, CamIcon, FlagIcon, GearIcon, ListIcon, RadarIcon, TraconMark } from "./icons";
 
 const ITEMS: { view: View; label: string; icon: React.ReactNode }[] = [
   { view: "overview", label: "Overview", icon: <RadarIcon /> },
+  { view: "live", label: "Live", icon: <CamIcon /> },
   { view: "timeline", label: "Timeline", icon: <ListIcon /> },
   { view: "packages", label: "Packages", icon: <BoxIcon /> },
   { view: "flagged", label: "Flagged", icon: <FlagIcon /> },
@@ -12,10 +13,12 @@ const ITEMS: { view: View; label: string; icon: React.ReactNode }[] = [
 export function NavRail(props: {
   view: View;
   stats: Stats | null;
+  liveCount: number;
   onNavigate: (v: View) => void;
   onOpenPalette: () => void;
 }) {
   const badgeFor = (view: View): number | null => {
+    if (view === "live") return props.liveCount;
     if (!props.stats) return null;
     if (view === "packages") return props.stats.package_count;
     if (view === "flagged") return props.stats.flagged_count;

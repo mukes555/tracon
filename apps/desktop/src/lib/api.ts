@@ -10,6 +10,7 @@ export const api = {
   flaggedEvents: (acked = false) => invoke<AgentEvent[]>("flagged_events", { acked }),
   ackEvent: (id: number, acked: boolean) => invoke("ack_event", { id, acked }),
   liveSessions: () => invoke<LiveSession[]>("live_sessions"),
+  sessionTail: (sessionId: string) => invoke<AgentEvent[]>("session_tail", { sessionId }),
   searchEvents: (query: string) => invoke<AgentEvent[]>("search_events", { query }),
   sessionThread: (sessionId: string) => invoke<ThreadMessage[]>("session_thread", { sessionId }),
   captureStatus: () => invoke<CaptureStatus>("capture_status"),

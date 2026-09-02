@@ -18,6 +18,7 @@ import { DetailPanel } from "./components/DetailPanel";
 import { EventList } from "./components/EventList";
 import { FilterBar } from "./components/FilterBar";
 import { FlaggedView } from "./components/FlaggedView";
+import { LiveView } from "./components/LiveView";
 import { NavRail } from "./components/NavRail";
 import { OverviewView } from "./components/OverviewView";
 import { PackagesView } from "./components/PackagesView";
@@ -37,6 +38,7 @@ function App() {
   const [flagged, setFlagged] = useState<AgentEvent[]>([]);
   const [days, setDays] = useState<DayCount[]>([]);
   const [live, setLive] = useState<LiveSession[]>([]);
+  const [tails, setTails] = useState<Record<string, AgentEvent[]>>({});
   const [capture, setCapture] = useState<CaptureStatus | null>(null);
   const [intelEnabled, setIntelEnabled] = useState<boolean | null>(null);
   const [query, setQuery] = useState("");
@@ -61,6 +63,9 @@ function App() {
     });
   }, []);
   const closeThread = useCallback(() => setThreadFor(null), []);
+  const openSessionThread = useCallback((s: LiveSession) => {
+    setThreadFor({ sessionId: s.session_id, agent: s.agent, title: projectName(s.cwd) });
+  }, []);
   const goSettings = useCallback(() => setView("settings"), []);
   const flagsChanged = useCallback(async () => {
     try {
@@ -128,6 +133,12 @@ function App() {
   useEffect(() => {
     const refresh = async () => {
       try {
+        // The live board must decay on its own (sessions drop out after
+        // five quiet minutes with no new events to bump the token), so it
+        // refreshes every poll while watched.
+        if (view === "live") {
+          setLive(await api.liveSessions());
+        }
         const token = await api.changeToken();
         const signature = `${view}|${selected}|${token.max_id}|${token.open_flags}|${token.acked_flags}`;
         if (signature === lastSignature.current) return;
@@ -144,6 +155,14 @@ function App() {
         }
         if (view === "packages") setPackages(await api.packageEvents());
         if (view === "flagged") setFlagged(await api.flaggedEvents());
+        if (view === "live") {
+          const sessions = await api.liveSessions();
+          setLive(sessions);
+          const pairs = await Promise.all(
+            sessions.map(async (s) => [s.session_id, await api.sessionTail(s.session_id)] as const),
+          );
+          setTails(Object.fromEntries(pairs));
+        }
         if (view === "timeline" && selected) {
           setEvents(await api.sessionEvents(selected));
         }
@@ -207,9 +226,20 @@ function App() {
       <NavRail
         view={view}
         stats={stats}
+        liveCount={live.length}
         onNavigate={setView}
         onOpenPalette={() => setPaletteOpen(true)}
       />
+
+      {view === "live" && (
+        <LiveView
+          sessions={live}
+          tails={tails}
+          onOpenSession={openSessionTimeline}
+          onOpenEvent={openDetail}
+          onReadThread={openSessionThread}
+        />
+      )}
 
       {view === "overview" && (
         <OverviewView
