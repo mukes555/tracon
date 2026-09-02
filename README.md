@@ -81,9 +81,13 @@ integrations/           hook configs and plugins for each agent
 
 Events flow in through hooks (an axum server on `localhost:48620`) or read-only log tailing, are normalized to one event shape, deduplicated, and stored locally. The UI polls a cheap change token and reads through a dedicated connection pool, so heavy capture never blocks the interface.
 
+## Built in the open, by the thing it audits
+
+Tracon is written largely by AI coding agents (Claude Code), with human direction and review, and Tracon recorded its own construction: the flag inbox caught the build's own `rm -rf node_modules`, and the Live page's first real test was watching the session that built it. We think an agent auditor should be honest about being agent-built. Every change passes the same gate (rustfmt, clippy with warnings denied, the full test suite, a TypeScript build) and lands through the CI in this repo.
+
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md). The gate for every change: `cargo fmt`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`, and `pnpm build` in `apps/desktop`.
+See [CONTRIBUTING.md](CONTRIBUTING.md), and look for [good first issues](https://github.com/mukes555/tracon/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22). AI-assisted contributions are welcome; review every line yourself and say so in the PR. The gate for every change: `cargo fmt`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`, and `pnpm build` in `apps/desktop`.
 
 ## License
 
