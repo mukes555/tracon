@@ -97,6 +97,8 @@ The **Simple** and **Advanced** switch in the top bar hides or shows operator de
 
 Tracon never modifies agent configuration and never writes to agent directories; tailing is read-only and capture offsets live in Tracon's own database.
 
+Hooks authenticate with a per-install token that Tracon writes to `~/.tracon/token` on first launch, so other local processes and web pages cannot forge or hide events. The ingest server only ever binds to 127.0.0.1.
+
 ## Principles
 
 - **Local-only by default.** Your audit data never leaves your machine. No telemetry. The single exception is opt-in (off by default): package threat intelligence, which sends package names, and nothing else, to osv.dev and registry.npmjs.org.

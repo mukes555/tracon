@@ -43,6 +43,7 @@ cask "tracon" do
   # The recorded audit database lives in Application Support; zap removes it
   # along with caches and window state.
   zap trash: [
+    "~/.tracon",
     "~/Library/Application Support/dev.tracon.desktop",
     "~/Library/Caches/dev.tracon.desktop",
     "~/Library/Preferences/dev.tracon.desktop.plist",

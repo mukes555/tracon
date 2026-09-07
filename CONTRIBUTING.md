@@ -10,7 +10,7 @@ Thanks for helping build the flight recorder for AI coding agents.
 
 ## Development setup
 
-Prereqs: Rust stable, Node 20+, pnpm 10 (via corepack).
+Prereqs: Rust stable, Node 22+, pnpm 10 (via corepack).
 
 ```
 pnpm install

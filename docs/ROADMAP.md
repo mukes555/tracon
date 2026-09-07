@@ -1,40 +1,40 @@
 # Tracon Roadmap
 
-Updated 2026-09-01.
+Updated 2026-09-08.
 
-## Where we are
+## Where we are (v0.3.0 shipped)
 
-Working three-and-a-half-agent recorder, verified end to end on real data:
+- Claude Code: plugin + HTTP hooks, transcript tailing, spool backfill, cross-source dedupe proven.
+- Codex CLI: rollout tailing. Cursor and Gemini CLI: hooks adapters.
+- Danger flags, package detection, opt-in OSV/freshness intel, retention purge (90d default).
+- Overview, Live, Timeline, Packages, Flagged, Settings; docked inspector; keyboard triage; command palette.
+- Quokka branding, app icon, menu bar icon. README tour with sample-data screenshots.
+- AGPL-3.0, CI (fmt, clippy, tests, frontend build), tag-triggered releases with provenance attestations, Homebrew cask.
 
-- Claude Code: plugin + HTTP hooks (live-tested with v2.1.235), transcript tailing, spool backfill, cross-source dedupe proven.
-- Codex CLI: rollout tailing with sandbox/approval context.
-- Cursor: hooks adapter + manual-install integration.
-- Gemini CLI: hooks adapter on a dedicated ingest route.
-- Danger flags, package detection, opt-in OSV/freshness intel, retention purge (90d default), timeline/packages/flagged UI with search, filters, drill-down, JSON export, capture status panel.
-- AGPL-3.0, CI (fmt/clippy/tests on mac+win), tag-triggered release workflow, packaging scaffolds. 37+ tests.
+## Next (v0.4)
 
-## v0.1.0 - first public release
-
-Dev tasks (Claude can do):
-- [ ] App icon (replace the Tauri default; tray needs a template icon on macOS)
-- [ ] Settings view in-app (port, retention days, intel toggle relocation)
+Dev tasks:
+- [ ] Ingest token, sanitized session ids, panic-proof tailers, bounded spool (in progress)
+- [ ] Local-time "today", poll error states, honest ack and settings feedback (in progress)
+- [ ] Session rollup table so stats and sessions stop scanning the events table (in progress)
+- [ ] Capture-paused banner and switch, delete data controls, version and log file in Settings (in progress)
+- [ ] Frontend tests, Linux CI, dependency audits, pinned toolchain (in progress)
+- [ ] Copilot CLI adapter (hooks + per-session events.jsonl)
 - [ ] Onboarding first-run screen (detect agents, copy-paste install snippets)
-- [ ] README screenshots + quickstart GIF
-- [ ] Windows smoke test (CI builds it; needs one manual run)
+- [ ] Ship the Claude plugin inside the app bundle so brew users get real-time hooks without a clone
+- [ ] Windows smoke test of the release build
 
 Owner tasks (only the user can do):
-- [ ] Create GitHub org (tracon-dev or traconhq) + repo, push, enable Private Vulnerability Reporting
-- [ ] Register tracon.dev
-- [ ] git tag v0.1.0 -> CI builds draft release -> publish
-- [ ] Apple Developer Program ($99/yr) for signing/notarization; Azure Trusted Signing ($9.99/mo) for Windows
-- [ ] Fill brew tap + winget manifests from the release artifacts
+- [ ] Add the HOMEBREW_TAP_TOKEN secret so the tap updates itself on release
+- [ ] Apple Developer Program for signing and notarization; Azure Trusted Signing for Windows
+- [ ] Register tracon.dev; enable Private Vulnerability Reporting
 
 ## v0.2 - trust and depth
 
 - Copilot CLI adapter (hooks + per-session events.jsonl)
 - Tamper evidence surfaced in UI: transcript activity with no matching hook stream = "hooks were disabled" banner
 - Divergence detection groundwork: process-poll attribution (unprivileged) tying installs to agent process trees
-- OpenSSF Scorecard + Best Practices badge, cargo-auditable + SBOM in release workflow
+- Auto-update (Tauri updater) once builds are signed; OpenSSF Scorecard; cargo-auditable + SBOM in the release workflow
 - Docs site (Starlight) with threat model page ("what Tracon can and cannot see")
 
 ## v0.3 - deep mode (opt-in elevation)

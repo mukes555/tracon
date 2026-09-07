@@ -20,4 +20,14 @@ Notable design guarantees worth attacking:
 
 ## Supply chain
 
-Releases are built in CI from tagged commits, signed, and published with SBOMs. Binaries are built with cargo auditable so their dependency tree is embedded and verifiable.
+Releases are built in CI from tagged commits by the workflow in this repository, and every installer carries a Sigstore build provenance attestation. Verify one with:
+
+```bash
+gh attestation verify Tracon_0.3.0_aarch64.dmg --repo mukes555/tracon
+```
+
+Builds are not yet code signed or notarized (that needs a paid Apple Developer account and a Windows signing certificate; both are on the roadmap). Until then, the Homebrew cask verifies the download checksum and the attestation above ties the file to the commit that built it. SBOMs and cargo auditable are not yet produced.
+
+## Local threat model
+
+The ingest server binds only to 127.0.0.1 and requires a per-install token (`~/.tracon/token`, mode 0600) on every POST, so other local processes and web pages cannot forge or suppress events. Transcript tailing is read-only, never follows symlinks, and never writes to agent directories. Recorded agent output is stored as data and rendered as text; it is never executed.

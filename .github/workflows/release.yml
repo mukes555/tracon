@@ -53,3 +53,12 @@ jobs:
           releaseName: "Tracon ${{ github.ref_name }}"
           releaseDraft: true
           args: ${{ matrix.args }}
+
+      # Sigstore provenance for every installer, verifiable with
+      # `gh attestation verify <file> --repo mukes555/tracon`.
+      - uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: |
+            apps/desktop/src-tauri/target/**/bundle/**/*.dmg
+            apps/desktop/src-tauri/target/**/bundle/**/*.exe
+            apps/desktop/src-tauri/target/**/bundle/**/*.msi
