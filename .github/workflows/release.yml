@@ -34,8 +34,16 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
-      - uses: dtolnay/rust-toolchain@stable
+      # rust-toolchain.toml is the single source of truth for the version;
+      # the action needs it spelled out, and the targets must land on that
+      # toolchain or the Intel build has nothing to cross-compile with.
+      - name: Read pinned toolchain
+        id: toolchain
+        shell: bash
+        run: echo "version=$(sed -n 's/^channel = "\(.*\)"/\1/p' rust-toolchain.toml)" >> "$GITHUB_OUTPUT"
+      - uses: dtolnay/rust-toolchain@master
         with:
+          toolchain: ${{ steps.toolchain.outputs.version }}
           targets: aarch64-apple-darwin,x86_64-apple-darwin
       - uses: Swatinem/rust-cache@v2
       - run: pnpm install --frozen-lockfile
@@ -57,8 +65,12 @@ jobs:
       # Sigstore provenance for every installer, verifiable with
       # `gh attestation verify <file> --repo mukes555/tracon`.
       - uses: actions/attest-build-provenance@v2
+        if: runner.os == 'macOS'
+        with:
+          subject-path: target/*/release/bundle/dmg/*.dmg
+      - uses: actions/attest-build-provenance@v2
+        if: runner.os == 'Windows'
         with:
           subject-path: |
-            apps/desktop/src-tauri/target/**/bundle/**/*.dmg
-            apps/desktop/src-tauri/target/**/bundle/**/*.exe
-            apps/desktop/src-tauri/target/**/bundle/**/*.msi
+            target/release/bundle/nsis/*.exe
+            target/release/bundle/msi/*.msi

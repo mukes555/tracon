@@ -213,6 +213,7 @@ mod tests {
     use super::*;
     use crate::test_support::temp_dir;
 
+    #[cfg(unix)]
     fn tool_use_line(id: &str, command: &str) -> String {
         serde_json::json!({
             "type": "assistant",
