@@ -15,8 +15,8 @@ export function NavRail(props: {
   stats: Stats | null;
   liveCount: number;
   onNavigate: (v: View) => void;
-  onOpenPalette: () => void;
 }) {
+  const openFlags = props.stats?.flagged_count ?? 0;
   const badgeFor = (view: View): number | null => {
     if (view === "live") return props.liveCount;
     if (!props.stats) return null;
@@ -29,15 +29,26 @@ export function NavRail(props: {
     <nav className="navrail">
       <div className="drag-strip" data-tauri-drag-region />
       <div className="brand" data-tauri-drag-region>
+        {/* The mascot avatar lands in public/mascot-avatar.png; until it
+            exists the image 404s, hides itself, and the T mark shows. */}
         <span className="brand-mark">
           <TraconMark size={16} />
+          <img
+            className="brand-avatar"
+            src="/mascot-avatar.png"
+            alt=""
+            onError={(e) => {
+              e.currentTarget.style.display = "none";
+            }}
+          />
         </span>
-        <span className="brand-name">Tracon</span>
+        <span className="brand-text">
+          <span className="brand-name">Tracon</span>
+          <span className="brand-sub">
+            {props.liveCount} live · {openFlags} open {openFlags === 1 ? "flag" : "flags"}
+          </span>
+        </span>
       </div>
-      <button className="nav-search" onClick={props.onOpenPalette}>
-        <span>Search</span>
-        <kbd className="kbd">⌘K</kbd>
-      </button>
       <ul>
         {ITEMS.map((item) => {
           const badge = badgeFor(item.view);

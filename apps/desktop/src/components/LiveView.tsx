@@ -8,6 +8,7 @@ import { CamIcon } from "./icons";
 export function LiveView(props: {
   sessions: LiveSession[];
   tails: Record<string, AgentEvent[]>;
+  advanced: boolean;
   onOpenSession: (sessionId: string) => void;
   onOpenEvent: (event: AgentEvent) => void;
   onReadThread: (session: LiveSession) => void;
@@ -52,6 +53,11 @@ export function LiveView(props: {
                 {s.last_prompt && <p className="cam-task">{s.last_prompt}</p>}
                 {s.subagents.length > 0 && (
                   <p className="cam-subagents">running: {s.subagents.join(" · ")}</p>
+                )}
+                {props.advanced && (
+                  <p className="cam-subagents">
+                    {s.event_count} events in the live window · session {s.session_id.slice(0, 8)}
+                  </p>
                 )}
 
                 <ul className="cam-screen">

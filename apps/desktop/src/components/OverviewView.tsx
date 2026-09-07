@@ -2,10 +2,6 @@ import { useState } from "react";
 import type { AgentEvent, CaptureStatus, DayCount, LiveSession, Stats, View } from "../lib/types";
 import { agentLabel, projectName, relTime, timeOf } from "../lib/format";
 
-// Persisted UI preference: the live board's expanded detail mode. A missing
-// or blocked localStorage silently falls back to the compact view.
-const LIVE_DETAILS_KEY = "tracon-live-details";
-
 export function OverviewView(props: {
   stats: Stats | null;
   days: DayCount[];
@@ -13,28 +9,14 @@ export function OverviewView(props: {
   recentFlagged: AgentEvent[];
   recentPackages: AgentEvent[];
   liveSessions: LiveSession[];
+  advanced: boolean;
   onNavigate: (v: View) => void;
   onOpenEvent: (event: AgentEvent) => void;
   onAck: (event: AgentEvent) => void;
   onOpenSession: (sessionId: string) => void;
 }) {
   const { stats } = props;
-  const [liveDetails, setLiveDetails] = useState(() => {
-    try {
-      return localStorage.getItem(LIVE_DETAILS_KEY) === "true";
-    } catch {
-      return false;
-    }
-  });
-  const toggleLiveDetails = () => {
-    const next = !liveDetails;
-    setLiveDetails(next);
-    try {
-      localStorage.setItem(LIVE_DETAILS_KEY, String(next));
-    } catch {
-      // preference just will not persist
-    }
-  };
+  const liveDetails = props.advanced;
   return (
     <main className="view overview">
       <header className="view-head">
@@ -44,19 +26,7 @@ export function OverviewView(props: {
 
       {props.liveSessions.length > 0 && (
         <section className="card live-card">
-          <div className="card-head">
-            <h3>Live now</h3>
-            <label className="live-toggle">
-              <input
-                type="checkbox"
-                className="switch-input"
-                checked={liveDetails}
-                onChange={toggleLiveDetails}
-              />
-              <span className="switch" aria-hidden="true" />
-              details
-            </label>
-          </div>
+          <h3>Live now</h3>
           <ul className="live-list">
             {props.liveSessions.map((s) => (
               <li key={s.session_id}>

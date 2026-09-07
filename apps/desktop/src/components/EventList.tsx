@@ -10,6 +10,7 @@ const INITIAL_ROWS = 150;
 export function EventList(props: {
   events: AgentEvent[];
   showProject: boolean;
+  advanced: boolean;
   onOpen: (event: AgentEvent) => void;
 }) {
   const [limit, setLimit] = useState(INITIAL_ROWS);
@@ -44,6 +45,7 @@ export function EventList(props: {
               )}
               {e.summary ?? ""}
               {e.flag && <span className="flag-chip">{e.flag}</span>}
+              {props.advanced && <span className="src-chip">{e.source}</span>}
             </span>
           </button>
         </li>

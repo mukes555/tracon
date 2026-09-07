@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "./App.css";
 import { api } from "./lib/api";
-import { agentLabel, matchesKindFilter, matchesQuery, projectName } from "./lib/format";
+import { agentLabel, matchesKindFilter, matchesQuery, projectName, relTime } from "./lib/format";
 import { applyTheme, normalizeTheme, THEME_KEY } from "./lib/theme";
 import type {
   AgentEvent,
@@ -20,6 +20,8 @@ import { FilterBar } from "./components/FilterBar";
 import { FlaggedView } from "./components/FlaggedView";
 import { LiveView } from "./components/LiveView";
 import { NavRail } from "./components/NavRail";
+import { StatusBar } from "./components/StatusBar";
+import { TopBar } from "./components/TopBar";
 import { OverviewView } from "./components/OverviewView";
 import { PackagesView } from "./components/PackagesView";
 import { SessionList } from "./components/SessionList";
@@ -27,6 +29,9 @@ import { SettingsView } from "./components/SettingsView";
 import { ThreadViewer } from "./components/ThreadViewer";
 
 const POLL_MS = 3000;
+// Simple hides the operator details (raw commands, ids, rates); Advanced
+// shows them everywhere. Persisted locally like a native app preference.
+const ADVANCED_KEY = "tracon-advanced";
 
 function App() {
   const [view, setView] = useState<View>("overview");
@@ -45,6 +50,22 @@ function App() {
   const [kind, setKind] = useState<KindFilter>("all");
   const [exportNote, setExportNote] = useState<string | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [updatedAt, setUpdatedAt] = useState<string | null>(null);
+  const [advanced, setAdvancedState] = useState(() => {
+    try {
+      return localStorage.getItem(ADVANCED_KEY) === "true";
+    } catch {
+      return false;
+    }
+  });
+  const setAdvanced = (on: boolean) => {
+    setAdvancedState(on);
+    try {
+      localStorage.setItem(ADVANCED_KEY, String(on));
+    } catch {
+      // preference just will not persist
+    }
+  };
   const [threadFor, setThreadFor] = useState<{
     sessionId: string;
     ts?: string;
@@ -137,6 +158,7 @@ function App() {
         // out of the live window is itself a token change; the board and
         // nav badge decay on every view without extra polling.
         const token = await api.changeToken();
+        setUpdatedAt(new Date().toISOString());
         const signature = `${view}|${selected}|${token.max_id}|${token.open_flags}|${token.acked_flags}|${token.live_sessions}`;
         if (signature === lastSignature.current) return;
         lastSignature.current = signature;
@@ -231,18 +253,21 @@ function App() {
           onClose={closeThread}
         />
       )}
-      <NavRail
-        view={view}
-        stats={stats}
-        liveCount={live.length}
-        onNavigate={setView}
+      <NavRail view={view} stats={stats} liveCount={live.length} onNavigate={setView} />
+
+      <div className="stage">
+      <TopBar
+        advanced={advanced}
+        onAdvanced={setAdvanced}
         onOpenPalette={() => setPaletteOpen(true)}
+        onNavigate={setView}
       />
 
       {view === "live" && (
         <LiveView
           sessions={live}
           tails={tails}
+          advanced={advanced}
           onOpenSession={openSessionTimeline}
           onOpenEvent={openDetail}
           onReadThread={openSessionThread}
@@ -257,6 +282,7 @@ function App() {
           recentFlagged={flagged}
           recentPackages={packages}
           liveSessions={live}
+          advanced={advanced}
           onNavigate={setView}
           onOpenEvent={openDetail}
           onAck={ackQuick}
@@ -300,7 +326,11 @@ function App() {
                   key={selectedSession.session_id}
                   events={filteredEvents}
                   showProject={false}
+                  advanced={advanced}
                   onOpen={openDetail}
+                />
+                <StatusBar
+                  left={`${filteredEvents.length} of ${events.length} events · updated ${updatedAt ? relTime(updatedAt) : "..."}`}
                 />
               </>
             ) : (
@@ -334,6 +364,7 @@ function App() {
       )}
 
       {view === "settings" && <SettingsView />}
+      </div>
     </div>
   );
 }
