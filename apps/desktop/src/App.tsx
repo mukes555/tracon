@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import "./App.css";
 import { api } from "./lib/api";
+import { ingestFailureText } from "./lib/captureSources";
 import { matchesKindFilter, matchesQuery, projectName } from "./lib/format";
 import { useAppData } from "./lib/useAppData";
-import { useToast } from "./lib/useToast";
 import { useUpdateStatus } from "./lib/useUpdateStatus";
-import { useTransientNote } from "./lib/useTransientNote";
+import { useNotify } from "./lib/notify";
 import { applyTheme, normalizeTheme, THEME_KEY } from "./lib/theme";
 import { useMediaQuery } from "./lib/useMediaQuery";
 import type { AgentEvent, KindFilter, View } from "./lib/types";
@@ -33,7 +33,6 @@ const INSPECTOR_QUERY = "(min-width: 1280px)";
 // Settings own their full width instead of carrying an empty column.
 const INSPECTOR_VIEWS: View[] = ["timeline", "packages", "flagged"];
 const VIEW_KEYS: View[] = ["overview", "live", "timeline", "packages", "flagged", "settings"];
-const EXPORT_NOTE_MS = 6000;
 
 // The rows the current list actually rendered, in display order. Keyboard
 // stepping and prev/next walk this, never a filtered-out or folded row.
@@ -47,7 +46,6 @@ function App() {
   const [intelEnabled, setIntelEnabled] = useState<boolean | null>(null);
   const [query, setQuery] = useState("");
   const [kind, setKind] = useState<KindFilter>("all");
-  const { note: exportNote, show: showExportNote } = useTransientNote(EXPORT_NOTE_MS);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const wide = useMediaQuery(INSPECTOR_QUERY);
   const [advanced, setAdvancedState] = useState(() => {
@@ -105,7 +103,7 @@ function App() {
     setSelected(sessionId);
     setDetail(null);
   }, []);
-  const { toast, show: showToast, dismiss: dismissToast } = useToast();
+  const notify = useNotify();
   const update = useUpdateStatus();
 
   const { flagsChanged, refreshNow, setPaused } = data;
@@ -116,18 +114,21 @@ function App() {
       try {
         await api.ackEvents(ids, acked);
       } catch {
-        showToast("Could not update flags.", { label: "Retry", run: () => ackMany(targets, acked, withToast) });
+        notify.error("Could not update flags", {
+          label: "Retry",
+          run: () => ackMany(targets, acked, withToast),
+        });
         return;
       }
       flagsChanged();
       if (!withToast) return;
       const what = targets.length === 1 ? (targets[0].summary ?? "1 flag") : `${targets.length} flags`;
-      showToast(`${acked ? "Acknowledged" : "Reopened"} ${what}`, {
+      notify.success(`${acked ? "Acknowledged" : "Reopened"} ${what}`, {
         label: "Undo",
         run: () => ackMany(targets, !acked, false),
       });
     },
-    [flagsChanged, showToast],
+    [flagsChanged, notify],
   );
   const ackQuick = useCallback(
     (event: AgentEvent, acked = true) => ackMany([event], acked),
@@ -142,8 +143,8 @@ function App() {
     [setPaused],
   );
   const resumeCapture = useCallback(() => {
-    setCapturePaused(false).catch(() => showToast("Could not resume capture"));
-  }, [setCapturePaused, showToast]);
+    setCapturePaused(false).catch(() => notify.error("Could not resume capture"));
+  }, [setCapturePaused, notify]);
 
   const deleteSession = useCallback(
     async (sessionId: string) => {
@@ -151,25 +152,25 @@ function App() {
         const removed = await api.purgeSession(sessionId);
         setSelected((current) => (current === sessionId ? null : current));
         setDetail(null);
-        showToast(`Deleted ${removed.toLocaleString()} events`);
+        notify.success(`Deleted ${removed.toLocaleString()} events`);
         refreshNow();
       } catch {
-        showToast("Could not delete the session");
+        notify.error("Could not delete the session");
       }
     },
-    [refreshNow, showToast],
+    [refreshNow, notify],
   );
   const deleteEverything = useCallback(async () => {
     try {
       const removed = await api.purgeAll();
       setSelected(null);
       setDetail(null);
-      showToast(`Deleted ${removed.toLocaleString()} events`);
+      notify.success(`Deleted ${removed.toLocaleString()} events`);
       refreshNow();
     } catch {
-      showToast("Could not delete the data");
+      notify.error("Could not delete the data");
     }
-  }, [refreshNow, showToast]);
+  }, [refreshNow, notify]);
 
   useEffect(() => {
     api
@@ -186,11 +187,11 @@ function App() {
     if (!selected) return;
     try {
       const path = await api.exportSession(selected);
-      showExportNote(`Exported to ${path}`);
-    } catch (err) {
-      showExportNote(`Export failed: ${String(err)}`, "bad");
+      notify.success(`Exported to ${path}`);
+    } catch {
+      notify.error("Could not export this session");
     }
-  }, [selected, showExportNote]);
+  }, [selected, notify]);
 
   const filteredEvents = useMemo(
     () => data.events.filter((e) => matchesKindFilter(e, kind) && matchesQuery(e, query)),
@@ -330,21 +331,6 @@ function App() {
           onOpenSession={openSessionTimeline}
         />
       )}
-      {toast && (
-        <div className="toast" role="status">
-          <span>{toast.text}</span>
-          {toast.action && (
-            <button
-              onClick={() => {
-                toast.action?.run();
-                dismissToast();
-              }}
-            >
-              {toast.action.label}
-            </button>
-          )}
-        </div>
-      )}
       {threadFor && (
         <ThreadViewer
           sessionId={threadFor.sessionId}
@@ -374,6 +360,7 @@ function App() {
         paused={data.paused}
         onResume={resumeCapture}
         update={update.status}
+        ingestFailure={ingestFailureText(data.capture)}
       />
 
       {view === "live" && (
@@ -413,7 +400,6 @@ function App() {
           filteredEvents={filteredEvents}
           query={query}
           kind={kind}
-          exportNote={exportNote?.text ?? null}
           updatedAt={data.updatedAt}
           advanced={advanced}
           selectedId={detail?.event.id}
@@ -456,7 +442,6 @@ function App() {
         <SettingsView
           paused={data.paused}
           onSetPaused={setCapturePaused}
-          capture={data.capture}
           eventCount={data.stats?.event_count ?? 0}
           onDeleteAll={deleteEverything}
           update={update.status}

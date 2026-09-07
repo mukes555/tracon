@@ -10,10 +10,15 @@ export function StatusBanners(props: {
   paused: boolean;
   onResume: () => void;
   update: UpdateStatus | null;
+  ingestFailure: string | null;
 }) {
   return (
     <>
-      {props.update?.available && <UpdateBanner status={props.update} />}
+      {props.ingestFailure && (
+        <p className="banner bad" role="alert">
+          {props.ingestFailure}
+        </p>
+      )}
       {props.connection === "lost" && (
         <p className="banner lost" role="status">
           Lost contact with the recorder, retrying
@@ -27,6 +32,7 @@ export function StatusBanners(props: {
           </button>
         </div>
       )}
+      {props.update?.available && <UpdateBanner status={props.update} />}
     </>
   );
 }

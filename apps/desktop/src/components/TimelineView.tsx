@@ -16,7 +16,6 @@ export function TimelineView(props: {
   filteredEvents: AgentEvent[];
   query: string;
   kind: KindFilter;
-  exportNote: string | null;
   updatedAt: string | null;
   advanced: boolean;
   selectedId?: number;
@@ -47,7 +46,6 @@ export function TimelineView(props: {
                 onReadThread={() => props.onReadThread(s)}
               />
               <FilterBar query={props.query} onQuery={props.onQuery} kind={props.kind} onKind={props.onKind} />
-              {props.exportNote && <p className="export-note">{props.exportNote}</p>}
             </div>
             {/* Key by session so the show-more window resets when the user
                 switches sessions. */}

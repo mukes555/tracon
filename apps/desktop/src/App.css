@@ -204,6 +204,13 @@ code {
   font-size: 12px;
 }
 
+.banner.bad {
+  background: var(--bad-soft);
+  color: var(--bad);
+  border: 1px solid color-mix(in srgb, var(--bad) 30%, transparent);
+  font-weight: 500;
+}
+
 .banner.warn {
   background: var(--warn-soft);
   color: var(--warn);
@@ -543,22 +550,6 @@ code {
   font-size: 13px;
 }
 
-.saved-note {
-  font-size: 12.5px;
-  color: var(--good);
-}
-
-.saved-note.bad,
-.export-note.bad {
-  color: var(--bad);
-}
-
-/* The recorder is receiving events but failing to store them. */
-.ingest-error {
-  font-size: 12.5px;
-  color: var(--bad);
-  margin-top: 10px;
-}
 
 .card {
   background: var(--surface);
@@ -1074,12 +1065,6 @@ code {
   margin: 0 0 14px;
 }
 
-.export-note {
-  font-size: 12px;
-  color: var(--good);
-  margin-bottom: 10px;
-  font-family: var(--mono);
-}
 
 /* ---------- rows: the one list anatomy ----------
    Every list in the app (timeline, flagged, packages) is a stack of rows:
@@ -2847,16 +2832,28 @@ code {
 
 /* ---------- toast ---------- */
 
-.toast {
+/* ---------- toasts ----------
+   The result of an action the user just took. Conditions that persist are
+   banners at the top instead; see StatusBanners. */
+.toaster {
   position: fixed;
   left: 50%;
   bottom: 22px;
   transform: translateX(-50%);
   z-index: 60;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 14px;
-  padding: 9px 10px 9px 16px;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.toast {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 8px 8px 14px;
   border-radius: 99px;
   background: var(--ink);
   color: var(--bg);
@@ -2866,13 +2863,31 @@ code {
   animation: toast-in 160ms ease-out;
 }
 
-.toast span {
+.toast-text {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.toast button {
+/* The level is a dot, not a whole colored slab: the toast should read the
+   same at a glance whatever it says. */
+.toast-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--ink-3);
+}
+
+.toast.success .toast-dot {
+  background: var(--accent);
+}
+
+.toast.error .toast-dot {
+  background: var(--bad);
+}
+
+.toast-action {
   background: var(--accent);
   color: var(--accent-contrast);
   border: none;
@@ -2881,11 +2896,28 @@ code {
   font-weight: 600;
   padding: 4px 12px;
   cursor: pointer;
+  flex-shrink: 0;
+}
+
+.toast-close {
+  background: none;
+  border: none;
+  color: var(--bg);
+  opacity: 0.55;
+  font-size: 12px;
+  line-height: 1;
+  padding: 4px 6px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.toast-close:hover {
+  opacity: 1;
 }
 
 @keyframes toast-in {
   from {
-    transform: translateX(-50%) translateY(8px);
+    transform: translateY(8px);
     opacity: 0;
   }
 }

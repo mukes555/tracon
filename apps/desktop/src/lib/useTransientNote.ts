@@ -5,9 +5,9 @@ const NOTE_MS = 2500;
 export type NoteTone = "ok" | "bad";
 export type TransientNote = { text: string; tone: NoteTone };
 
-/// A short inline confirmation ("Theme saved", "copied") that clears itself.
-/// Showing a new note restarts the timer; unmounting clears it so a late
-/// timeout never touches a gone component.
+/// A control's own micro-state, like "Copied" on a copy button. Anything
+/// the user should read as a result of an action goes through notify()
+/// instead; anything that stays true goes in a banner. See lib/notify.tsx.
 export function useTransientNote(ms = NOTE_MS) {
   const [note, setNote] = useState<TransientNote | null>(null);
   const timer = useRef<number | undefined>(undefined);

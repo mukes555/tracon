@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { CaptureStatus } from "../lib/types";
-import { CAPTURE_SOURCES, type CaptureSource, ingestFailureText, sourceEventCount } from "../lib/captureSources";
+import { CAPTURE_SOURCES, type CaptureSource, sourceEventCount } from "../lib/captureSources";
 import { useTransientNote } from "../lib/useTransientNote";
 
 /// Where events come from and how to connect what is not: one line per
@@ -12,7 +12,6 @@ export function CaptureCard(props: { capture: CaptureStatus | null }) {
   const copied = useTransientNote();
   if (!props.capture) return null;
   const capture = props.capture;
-  const ingestFailure = ingestFailureText(capture);
 
   const copy = async (key: string, text: string) => {
     try {
@@ -26,7 +25,6 @@ export function CaptureCard(props: { capture: CaptureStatus | null }) {
   return (
     <section className="card">
       <h3>Capture sources</h3>
-      {ingestFailure && <p className="ingest-error">{ingestFailure}</p>}
       <ul className="setup-list">
         {CAPTURE_SOURCES.map((s) => {
           const count = sourceEventCount(capture, s);

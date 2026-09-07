@@ -1,11 +1,10 @@
 import { useEffect, useState } from "react";
 import { openPath, revealItemInDir } from "@tauri-apps/plugin-opener";
 import { api } from "../lib/api";
-import { ingestFailureText } from "../lib/captureSources";
 import { relTime } from "../lib/format";
 import { applyTheme, normalizeTheme, THEME_KEY } from "../lib/theme";
-import type { CaptureStatus, ThemeSetting, UpdateStatus } from "../lib/types";
-import { useTransientNote } from "../lib/useTransientNote";
+import type { ThemeSetting, UpdateStatus } from "../lib/types";
+import { report, useNotify } from "../lib/notify";
 import { ConfirmButton } from "./ConfirmButton";
 import { SettingRow } from "./SettingRow";
 import { Switch } from "./Switch";
@@ -19,7 +18,6 @@ const THEMES: { value: ThemeSetting; label: string }[] = [
 export function SettingsView(props: {
   paused: boolean;
   onSetPaused: (paused: boolean) => Promise<void>;
-  capture: CaptureStatus | null;
   eventCount: number;
   onDeleteAll: () => Promise<void>;
   update: UpdateStatus | null;
@@ -28,12 +26,12 @@ export function SettingsView(props: {
 }) {
   const [theme, setTheme] = useState<ThemeSetting>("light");
   const [intel, setIntel] = useState<boolean | null>(null);
-  const [notify, setNotify] = useState(true);
+  const [notifyFlags, setNotifyFlags] = useState(true);
   const [retention, setRetention] = useState("90");
   const [dataDir, setDataDir] = useState("");
   const [version, setVersion] = useState("");
   const [checking, setChecking] = useState(false);
-  const { note, show } = useTransientNote();
+  const notify = useNotify();
 
   useEffect(() => {
     api.getSetting(THEME_KEY).then((v) => setTheme(normalizeTheme(v))).catch(() => {});
@@ -47,29 +45,20 @@ export function SettingsView(props: {
       .catch(() => {});
     api
       .getSetting("notify_flags")
-      .then((v) => setNotify(v !== "false"))
+      .then((v) => setNotifyFlags(v !== "false"))
       .catch(() => {});
     api.dataDir().then(setDataDir).catch(() => {});
     api.appVersion().then(setVersion).catch(() => {});
   }, []);
 
-  // Every save reports the same way: the success line only once the
-  // recorder confirmed, "Could not save" otherwise.
-  const save = async (write: Promise<unknown>, doneText: string, revert?: () => void) => {
-    try {
-      await write;
-      show(doneText);
-    } catch {
-      revert?.();
-      show("Could not save", "bad");
-    }
-  };
+  const save = (write: Promise<unknown>, doneText: string, revert?: () => void) =>
+    report(notify, write, doneText, "Could not save", revert);
 
-  const toggleNotify = () => {
-    const next = !notify;
-    setNotify(next);
+  const toggleNotifyFlags = () => {
+    const next = !notifyFlags;
+    setNotifyFlags(next);
     const text = next ? "Flag notifications on" : "Flag notifications off";
-    save(api.setSetting("notify_flags", String(next)), text, () => setNotify(!next));
+    save(api.setSetting("notify_flags", String(next)), text, () => setNotifyFlags(!next));
   };
 
   const chooseTheme = (value: ThemeSetting) => {
@@ -88,7 +77,7 @@ export function SettingsView(props: {
   const saveRetention = () => {
     const days = parseInt(retention, 10);
     if (!Number.isFinite(days) || days < 1) {
-      show("Enter a number of days", "bad");
+      notify.error("History needs a number of days");
       return;
     }
     save(api.setSetting("retention_days", String(days)), `Keeping ${days} days of history`);
@@ -98,9 +87,9 @@ export function SettingsView(props: {
     const next = !(props.update?.enabled ?? false);
     try {
       await props.onSetUpdateCheck(next);
-      show(next ? "Daily update check on" : "Daily update check off");
+      notify.success(next ? "Daily update check on" : "Daily update check off");
     } catch {
-      show("Could not save", "bad");
+      notify.error("Could not save");
     }
   };
 
@@ -108,9 +97,10 @@ export function SettingsView(props: {
     setChecking(true);
     try {
       const next = await props.onCheckUpdate();
-      show(next.available ? `Tracon ${next.latest} is available` : "You are on the latest version");
+      if (next.available) notify.success(`Tracon ${next.latest} is available`);
+      else notify.info("You are on the latest version");
     } catch {
-      show("Could not reach GitHub", "bad");
+      notify.error("Could not reach GitHub");
     } finally {
       setChecking(false);
     }
@@ -123,20 +113,16 @@ export function SettingsView(props: {
       // still gets the user to the log.
       await revealItemInDir(path).catch(() => openPath(path));
     } catch {
-      show("Could not open the log", "bad");
+      notify.error("Could not open the log");
     }
   };
 
-  const ingestFailure = ingestFailureText(props.capture);
   const update = props.update;
 
   return (
     <main className="view settings">
       <header className="view-head">
         <h1>Settings</h1>
-        {note && (
-          <span className={note.tone === "bad" ? "saved-note bad" : "saved-note"}>{note.text}</span>
-        )}
       </header>
 
       <section className="card">
@@ -160,7 +146,9 @@ export function SettingsView(props: {
         <SettingRow
           label="Flag notifications"
           hint="A system notification the moment a recursive delete, pipe to shell, credential access, or risky package lands."
-          control={<Switch checked={notify} label="Flag notifications" onChange={toggleNotify} />}
+          control={
+            <Switch checked={notifyFlags} label="Flag notifications" onChange={toggleNotifyFlags} />
+          }
         />
         <SettingRow
           label="Threat intelligence"
@@ -174,7 +162,6 @@ export function SettingsView(props: {
             />
           }
         />
-        {ingestFailure && <p className="ingest-error">{ingestFailure}</p>}
       </section>
 
       <section className="card">
