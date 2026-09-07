@@ -73,14 +73,20 @@ export const FlagIcon = (p: IconProps) => (
   </Svg>
 );
 
-/// A cog outline. The old version was a circle with eight radiating
-/// spokes, which reads as a sun at 16px.
-export const GearIcon = (p: IconProps) => (
-  <Svg {...p}>
-    <circle cx="8" cy="8" r="2.5" />
-    <path d="M12.9 9.7a1 1 0 0 0 .2 1.1l.1.1a1.2 1.2 0 1 1-1.7 1.7l-.1-.1a1 1 0 0 0-1.1-.2 1 1 0 0 0-.6.9v.2a1.2 1.2 0 0 1-2.4 0v-.1a1 1 0 0 0-.6-.9 1 1 0 0 0-1.1.2l-.1.1a1.2 1.2 0 1 1-1.7-1.7l.1-.1a1 1 0 0 0 .2-1.1 1 1 0 0 0-.9-.6h-.2a1.2 1.2 0 0 1 0-2.4h.1a1 1 0 0 0 .9-.6 1 1 0 0 0-.2-1.1l-.1-.1a1.2 1.2 0 1 1 1.7-1.7l.1.1a1 1 0 0 0 1.1.2h.1a1 1 0 0 0 .6-.9v-.2a1.2 1.2 0 0 1 2.4 0v.1a1 1 0 0 0 .6.9 1 1 0 0 0 1.1-.2l.1-.1a1.2 1.2 0 1 1 1.7 1.7l-.1.1a1 1 0 0 0-.2 1.1v.1a1 1 0 0 0 .9.6h.2a1.2 1.2 0 0 1 0 2.4h-.1a1 1 0 0 0-.9.6Z" />
-  </Svg>
-);
+/// A filled, toothed gear. Drawn as one path with the hub punched out:
+/// stroked spokes read as a sun and thin outlines as a flower at 16px.
+export const GearIcon = (p: IconProps) => {
+  const s = p.size ?? 16;
+  return (
+    <svg width={s} height={s} viewBox="0 0 16 16" aria-hidden="true">
+      <path
+        fill="currentColor"
+        fillRule="evenodd"
+        d="M5.84 3.16 L6.21 1.34 L9.79 1.34 L10.16 3.16 L11.12 3.71 L12.88 3.12 L14.66 6.21 L13.27 7.45 L13.27 8.55 L14.66 9.79 L12.88 12.88 L11.12 12.29 L10.16 12.84 L9.79 14.66 L6.21 14.66 L5.84 12.84 L4.88 12.29 L3.12 12.88 L1.34 9.79 L2.73 8.55 L2.73 7.45 L1.34 6.21 L3.12 3.12 L4.88 3.71 Z M10.5 8 A2.5 2.5 0 1 0 5.5 8 A2.5 2.5 0 1 0 10.5 8 Z"
+      />
+    </svg>
+  );
+};
 
 export const TerminalIcon = (p: IconProps) => (
   <Svg {...p}>

@@ -1,14 +1,17 @@
 import type { View } from "../lib/types";
-import { GearIcon } from "./icons";
 
-/// The bar above every view: a search-first command field (opens the
-/// palette), the Simple/Advanced mode switch, and settings. Mirrors the
-/// header of a native macOS utility rather than a web app toolbar.
+/// Views where Simple and Advanced actually change what is on screen.
+/// Settings has no event detail to expand, so the switch stays out of it.
+const DETAIL_VIEWS: View[] = ["overview", "live", "timeline", "packages", "flagged"];
+
+/// The bar above every view: a search-first command field that opens the
+/// palette, and the Simple/Advanced detail switch. Settings lives in the
+/// nav rail, so there is no second way in from here.
 export function TopBar(props: {
+  view: View;
   advanced: boolean;
   onAdvanced: (on: boolean) => void;
   onOpenPalette: () => void;
-  onNavigate: (v: View) => void;
 }) {
   return (
     <header className="topbar" data-tauri-drag-region>
@@ -20,6 +23,7 @@ export function TopBar(props: {
         <span className="cmdbar-hint">Search sessions, commands, flags, or type &gt; for commands</span>
         <kbd className="kbd">⌘K</kbd>
       </button>
+      {DETAIL_VIEWS.includes(props.view) && (
       <div className="seg topbar-seg">
         <button
           className={props.advanced ? "seg-item" : "seg-item active"}
@@ -34,9 +38,7 @@ export function TopBar(props: {
           Advanced
         </button>
       </div>
-      <button className="icon-btn" onClick={() => props.onNavigate("settings")} aria-label="Settings">
-        <GearIcon />
-      </button>
+      )}
     </header>
   );
 }

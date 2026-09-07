@@ -364,10 +364,10 @@ function App() {
 
       <div className="stage">
       <TopBar
+        view={view}
         advanced={advanced}
         onAdvanced={setAdvanced}
         onOpenPalette={() => setPaletteOpen(true)}
-        onNavigate={navigate}
       />
       <StatusBanners
         connection={data.connection}
