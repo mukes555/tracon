@@ -48,7 +48,11 @@ export function SessionList(props: {
       {visible.length === 0 && <p className="muted">No sessions match.</p>}
       {groups.map((group) => (
         <div key={group.label} className="session-group">
-          <h2>{group.label}</h2>
+          <h2 className="group-head">
+            <span className="group-bar" />
+            {group.label}
+            <span className="group-count">{group.items.length}</span>
+          </h2>
           <ul>
             {group.items.map((s) => (
               <li key={s.session_id}>

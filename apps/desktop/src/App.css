@@ -31,6 +31,11 @@
   --warn-soft: rgba(224, 178, 90, 0.14);
   --bad: #f0785f;
   --bad-soft: rgba(240, 120, 95, 0.12);
+  --tile-green: #8fe39a;
+  --tile-blue: #8cb8ea;
+  --tile-purple: #c3a8ef;
+  --tile-gray: #9aa392;
+  --tile-red: #f28a74;
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 14px 40px rgba(0, 0, 0, 0.35);
   --shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.3), 0 5px 18px rgba(0, 0, 0, 0.2);
   --font-ui: -apple-system, "SF Pro Text", "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
@@ -65,6 +70,11 @@
     --warn-soft: rgba(150, 105, 14, 0.12);
     --bad: #a8200d;
     --bad-soft: rgba(168, 32, 13, 0.08);
+    --tile-green: #2f7d31;
+    --tile-blue: #2f63b5;
+    --tile-purple: #6b4fc0;
+    --tile-gray: #6d7566;
+    --tile-red: #b8321f;
     --shadow: 0 1px 2px rgba(24, 28, 18, 0.05), 0 12px 32px rgba(24, 28, 18, 0.08);
     --shadow-soft: 0 1px 2px rgba(24, 28, 18, 0.04), 0 4px 14px rgba(24, 28, 18, 0.05);
     color-scheme: light;
@@ -95,6 +105,11 @@
   --warn-soft: rgba(150, 105, 14, 0.12);
   --bad: #a8200d;
   --bad-soft: rgba(168, 32, 13, 0.08);
+  --tile-green: #2f7d31;
+  --tile-blue: #2f63b5;
+  --tile-purple: #6b4fc0;
+  --tile-gray: #6d7566;
+  --tile-red: #b8321f;
   --shadow: 0 1px 2px rgba(24, 28, 18, 0.05), 0 12px 32px rgba(24, 28, 18, 0.08);
   --shadow-soft: 0 1px 2px rgba(24, 28, 18, 0.04), 0 4px 14px rgba(24, 28, 18, 0.05);
   color-scheme: light;
@@ -801,17 +816,7 @@ code {
   min-width: 0;
 }
 
-.session-group h2 {
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  color: var(--ink-3);
-  margin: 16px 0 8px 6px;
-}
 
-.session-group:first-child h2 {
-  margin-top: 0;
-}
 
 .session-group ul {
   list-style: none;
@@ -1029,13 +1034,16 @@ code {
   font-family: var(--mono);
 }
 
-/* ---------- event list ---------- */
+/* ---------- rows: the one list anatomy ----------
+   Every list in the app (timeline, flagged, packages) is a stack of rows:
+   a colored type tile, a bold title with chips, a one-line secondary in
+   mono, right-aligned meta, and a circular action. Uniform heights and
+   straight edges read as one ledger. */
 
-/* The event ledger lives on its own white panel; rows floating directly on
-   the canvas read as content blending into the background. */
-.events {
+.rows {
   list-style: none;
   padding: 6px;
+  margin: 0;
   display: flex;
   flex-direction: column;
   background: var(--surface);
@@ -1044,104 +1052,211 @@ code {
   box-shadow: var(--shadow-soft);
 }
 
-.event {
-  display: grid;
-  grid-template-columns: 86px 130px 1fr;
-  gap: 12px;
-  padding: 6px 10px;
-  border: none;
-  border-left: 3px solid transparent;
-  border-radius: 7px;
-  font-size: 13px;
-  align-items: baseline;
-  width: 100%;
-  text-align: left;
-  background: transparent;
-  cursor: pointer;
-}
-
-.events > li {
+.rows > li {
   border-bottom: 1px solid var(--line-soft);
 }
 
-.events > li:last-child {
+.rows > li:last-child {
   border-bottom: none;
 }
 
-.event:hover {
-  background: var(--surface-2);
-}
-
-.event-time {
-  color: var(--ink-3);
-  font-variant-numeric: tabular-nums;
-  font-size: 12px;
-}
-
-.event-kind {
-  color: var(--accent-ink);
-  font-weight: 600;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 12.5px;
+.row-line {
   display: flex;
   align-items: center;
   gap: 6px;
+  padding-right: 8px;
 }
 
-.event-icon {
+.row {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 7px 10px;
+  background: transparent;
+  border: none;
+  border-radius: 9px;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+}
+
+.row:hover {
+  background: var(--surface-2);
+}
+
+.row.flagged {
+  background: var(--bad-soft);
+}
+
+.row.flagged:hover {
+  background: color-mix(in srgb, var(--bad) 14%, var(--surface));
+}
+
+.type-tile {
   display: inline-flex;
-  opacity: 0.75;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
   flex-shrink: 0;
+  color: var(--tile-gray);
+  background: color-mix(in srgb, var(--tile-gray) 16%, transparent);
 }
 
-.kind-prompt .event-kind,
-.kind-session_start .event-kind,
-.kind-session_end .event-kind,
-.kind-other .event-kind,
-.kind-tool_result .event-kind {
-  color: var(--ink-3);
-  font-weight: 500;
+.type-tile.tone-green {
+  color: var(--tile-green);
+  background: color-mix(in srgb, var(--tile-green) 16%, transparent);
 }
 
-.kind-package_install {
-  border-left-color: var(--good);
+.type-tile.tone-blue {
+  color: var(--tile-blue);
+  background: color-mix(in srgb, var(--tile-blue) 16%, transparent);
 }
 
-.kind-package_install .event-kind {
-  color: var(--good);
+.type-tile.tone-purple {
+  color: var(--tile-purple);
+  background: color-mix(in srgb, var(--tile-purple) 16%, transparent);
 }
 
-.event.kind-prompt {
-  background: var(--surface-2) !important;
-  border-left-color: var(--ink-3);
+.type-tile.tone-red {
+  color: var(--tile-red);
+  background: color-mix(in srgb, var(--tile-red) 16%, transparent);
 }
 
-.event.flagged {
-  border-left-color: var(--bad);
-  background: var(--bad-soft) !important;
+.row-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
 }
 
-/* One line per event, always: uniform row heights read as a clean ledger.
-   The full text is one click away in the slide-over. */
-.event-summary {
+.row-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ink);
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.row-sub {
   font-family: var(--mono);
-  font-size: 12.5px;
+  font-size: 12px;
   color: var(--ink-2);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.kind-prompt .event-summary {
-  font-family: inherit;
-  color: var(--ink);
+.row-sub.prose {
+  font-family: var(--font-ui);
+  font-size: 12.5px;
 }
 
-.event-project {
+.row-project {
   color: var(--ink-3);
-  font-family: var(--font-ui);
+}
+
+.row-meta {
+  flex-shrink: 0;
+  font-size: 11.5px;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  padding-left: 8px;
+}
+
+.row-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  color: var(--ink-3);
+  flex-shrink: 0;
+  opacity: 0.55;
+}
+
+.row:hover .row-action {
+  opacity: 1;
+  color: var(--ink-2);
+}
+
+.row-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--surface-2);
+  border: 1px solid var(--line-soft);
+  color: var(--ink-3);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.row-action-btn:hover {
+  color: var(--ink);
+  border-color: var(--line);
+}
+
+.row-action-btn.ack {
+  color: var(--accent-contrast);
+  background: var(--accent);
+  border-color: transparent;
+}
+
+/* Group headers: a colored bar, the label, and a count pill. */
+.group + .group {
+  margin-top: 16px;
+}
+
+.group-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  margin: 0 0 8px 2px;
+}
+
+.group-bar {
+  width: 3px;
+  height: 14px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+
+.group-count {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0;
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  border-radius: 99px;
+  padding: 0 7px;
+  font-variant-numeric: tabular-nums;
+}
+
+.session-group .group-head {
+  margin: 16px 0 8px 6px;
+}
+
+.session-group:first-child .group-head {
+  margin-top: 4px;
 }
 
 .flag-chip {
@@ -1254,50 +1369,11 @@ code {
   margin-left: 2px;
 }
 
-.pkg-group h2 {
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  color: var(--ink-3);
-  margin: 20px 0 10px 2px;
-}
 
-.pkg-group:first-of-type h2 {
-  margin-top: 6px;
-}
 
-.pkg-list {
-  list-style: none;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-}
 
-.pkg-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 14px;
-  width: 100%;
-  text-align: left;
-  background: var(--surface);
-  border: 1px solid var(--line-soft);
-  border-radius: 12px;
-  padding: 12px 16px;
-  cursor: pointer;
-  box-shadow: var(--shadow-soft);
-}
 
-.pkg-row:hover {
-  border-color: var(--line);
-  transform: translateY(-1px);
-  box-shadow: var(--shadow);
-}
 
-.pkg-row.flagged {
-  border-color: color-mix(in srgb, var(--bad) 45%, transparent);
-  background: linear-gradient(90deg, var(--bad-soft), var(--surface) 40%);
-}
 
 .pkg-badge {
   font-family: var(--mono);
@@ -1367,13 +1443,6 @@ code {
   border-color: rgba(90, 74, 156, 0.35);
 }
 
-.pkg-main {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  min-width: 0;
-  flex: 1;
-}
 
 .pkg-names {
   display: flex;
@@ -1407,85 +1476,8 @@ code {
   font-style: italic;
 }
 
-.pkg-meta {
-  font-size: 11.5px;
-  color: var(--ink-3);
-  font-variant-numeric: tabular-nums;
-}
 
 /* ---------- flagged ---------- */
-
-/* Flagged rows are a strict one-line grid: fixed severity column, one-line
-   command, right-aligned meta, Ack. Full text lives in the slide-over.
-   Uniform height and quiet color; the severity pill carries the red. */
-.pkg-row.flg-row {
-  align-items: center;
-  padding: 8px 10px 8px 12px;
-}
-
-.pkg-row.flg-row:hover {
-  border-color: var(--line);
-}
-
-.flg-badge {
-  display: inline-block;
-  width: 132px;
-  flex-shrink: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  text-align: center;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.03em;
-  padding: 3px 10px;
-  border-radius: 99px;
-  border: 1px solid color-mix(in srgb, var(--bad) 40%, transparent);
-  color: var(--bad);
-  background: var(--bad-soft);
-  flex-shrink: 0;
-  margin-top: 1px;
-  max-width: 260px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.flg-badge svg {
-  flex-shrink: 0;
-}
-
-.flg-command {
-  flex: 1;
-  min-width: 0;
-  font-family: var(--mono);
-  font-size: 12.5px;
-  color: var(--ink);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.flg-meta {
-  flex-shrink: 0;
-  font-size: 11.5px;
-  color: var(--ink-3);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-.flg-body {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  flex: 1;
-  min-width: 0;
-  background: none;
-  border: none;
-  padding: 0;
-  text-align: left;
-  cursor: pointer;
-}
 
 .ack-btn {
   flex-shrink: 0;
@@ -1506,16 +1498,14 @@ code {
 
 /* Warnings are amber: green is this palette's brand and "good" color, so a
    green danger pill would read as praise. */
-.flg-badge.sev-warning {
-  border-color: color-mix(in srgb, var(--warn) 45%, transparent);
-  color: var(--warn);
+.flag-chip.sev-warning {
   background: var(--warn-soft);
+  color: var(--warn);
 }
 
-.flg-badge.sev-notice {
-  border-color: var(--line);
-  color: var(--ink-2);
+.flag-chip.sev-notice {
   background: var(--surface-2);
+  color: var(--ink-2);
 }
 
 /* ---------- live page: the security room ---------- */

@@ -117,3 +117,35 @@ export function kindIcon(kind: string, toolName: string | null) {
   }
   return <DotIcon />;
 }
+
+/** Colored square tile for a row, tinted by what the event is: terminal
+    commands green, file edits blue, package installs purple, prompts and
+    everything else gray. A flagged event turns red whatever its kind. */
+export function TypeTile(props: { kind: string; toolName: string | null; flagged?: boolean }) {
+  const tone = props.flagged ? "red" : toneFor(props.kind, props.toolName);
+  return <span className={`type-tile tone-${tone}`}>{kindIcon(props.kind, props.toolName)}</span>;
+}
+
+function toneFor(kind: string, toolName: string | null): string {
+  if (kind === "package_install") return "purple";
+  if (kind === "prompt") return "gray";
+  const isTool = kind === "tool_call" || kind === "tool_result";
+  if (!isTool) return "gray";
+  if (toolName === "Bash" || toolName === "shell") return "green";
+  if (["Edit", "Write", "MultiEdit", "NotebookEdit", "Read"].includes(toolName ?? "")) return "blue";
+  return "green";
+}
+
+export const InfoIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <circle cx="8" cy="8" r="6.2" />
+    <path d="M8 7.2 V11.2" />
+    <circle cx="8" cy="5" r="0.6" fill="currentColor" stroke="none" />
+  </Svg>
+);
+
+export const CheckIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M3.2 8.4 L6.6 11.6 L12.8 4.8" />
+  </Svg>
+);

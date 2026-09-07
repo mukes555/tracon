@@ -5,7 +5,8 @@ import type { AgentEvent } from "../lib/types";
 // inline; payload fetching lives there now.
 import { agentCounts, agentLabel, groupByDay, projectName, severityOf, timeOf } from "../lib/format";
 import { AgentChips } from "./AgentChips";
-import { FlagIcon } from "./icons";
+import { CheckIcon, FlagIcon, TypeTile } from "./icons";
+import { StatusBar } from "./StatusBar";
 
 type Category =
   | "deletes"
@@ -145,32 +146,43 @@ export function FlaggedView(props: {
         </div>
       ) : (
         groupByDay(filtered, (row) => row.event.ts).map((group) => (
-          <section key={group.label} className="pkg-group">
-            <h2>{group.label}</h2>
-            <ul className="pkg-list">
+          <section key={group.label} className="group">
+            <h2 className="group-head">
+              <span className="group-bar" />
+              {group.label}
+              <span className="group-count">{group.items.length}</span>
+            </h2>
+            <ul className="rows">
               {group.items.map((row, i) => {
                 const sev = severityOf(row.event.flag ?? "", row.event.summary);
+                const isOpen = bucket === "open";
                 return (
-                  <li key={row.event.id ?? i}>
-                    <div className="pkg-row flg-row">
-                      <button
-                        className="flg-body"
-                        onClick={() => props.onOpenEvent(row.event, bucket === "acked")}
-                      >
-                        <span className={`flg-badge sev-${sev}`}>{row.event.flag}</span>
-                        <span className="flg-command">{row.event.summary}</span>
-                        <span className="flg-meta">
-                          {projectName(row.event.cwd)} · {agentLabel(row.event.agent)} ·{" "}
-                          {timeOf(row.event.ts)}
+                  <li key={row.event.id ?? i} className="row-line">
+                    <button
+                      className="row flagged"
+                      onClick={() => props.onOpenEvent(row.event, !isOpen)}
+                    >
+                      <TypeTile kind={row.event.kind} toolName={row.event.tool_name} flagged />
+                      <span className="row-main">
+                        <span className="row-title">
+                          {row.event.tool_name ?? row.event.kind}
+                          <span className={`flag-chip sev-${sev}`}>{row.event.flag}</span>
                         </span>
-                      </button>
-                      <button
-                        className="ack-btn"
-                        onClick={() => setAck(row.event, bucket === "open")}
-                      >
-                        {bucket === "open" ? "Acknowledge" : "Reopen"}
-                      </button>
-                    </div>
+                        <span className="row-sub">{row.event.summary}</span>
+                      </span>
+                      <span className="row-meta">
+                        {projectName(row.event.cwd)} · {agentLabel(row.event.agent)} ·{" "}
+                        {timeOf(row.event.ts)}
+                      </span>
+                    </button>
+                    <button
+                      className={isOpen ? "row-action-btn ack" : "row-action-btn"}
+                      title={isOpen ? "Acknowledge" : "Reopen"}
+                      aria-label={isOpen ? "Acknowledge" : "Reopen"}
+                      onClick={() => setAck(row.event, isOpen)}
+                    >
+                      <CheckIcon size={14} />
+                    </button>
                   </li>
                 );
               })}
@@ -185,6 +197,7 @@ export function FlaggedView(props: {
           </button>
         </div>
       )}
+      <StatusBar left={`${filtered.length} of ${allFiltered.length} ${bucket === "open" ? "open" : "acknowledged"} flags shown`} />
     </main>
   );
 }

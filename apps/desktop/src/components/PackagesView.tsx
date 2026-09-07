@@ -3,7 +3,8 @@ import type { AgentEvent } from "../lib/types";
 // Rows open the app-wide slide-over (DetailPanel); payload fetching lives there.
 import { agentCounts, agentLabel, groupByDay, projectName, timeOf } from "../lib/format";
 import { AgentChips } from "./AgentChips";
-import { BoxIcon } from "./icons";
+import { BoxIcon, InfoIcon, TypeTile } from "./icons";
+import { StatusBar } from "./StatusBar";
 
 type Family = "js" | "py" | "rust" | "sys" | "app" | "other";
 
@@ -113,18 +114,23 @@ export function PackagesView(props: {
         </div>
       ) : (
         groupByDay(filtered, (row) => row.event.ts).map((group) => (
-          <section key={group.label} className="pkg-group">
-            <h2>{group.label}</h2>
-            <ul className="pkg-list">
+          <section key={group.label} className="group">
+            <h2 className="group-head">
+              <span className="group-bar" />
+              {group.label}
+              <span className="group-count">{group.items.length}</span>
+            </h2>
+            <ul className="rows">
               {group.items.map((row, i) => (
                 <li key={row.event.id ?? i}>
                   <button
-                    className={`pkg-row${row.event.flag ? " flagged" : ""}`}
+                    className={row.event.flag ? "row flagged" : "row"}
                     onClick={() => props.onOpenEvent(row.event)}
                   >
-                    <span className={`pkg-badge fam-${row.family}`}>{row.manager}</span>
-                    <span className="pkg-main">
-                      <span className="pkg-names">
+                    <TypeTile kind={row.event.kind} toolName={row.event.tool_name} flagged={!!row.event.flag} />
+                    <span className="row-main">
+                      <span className="row-title pkg-names">
+                        <span className={`pkg-badge fam-${row.family}`}>{row.manager}</span>
                         {row.appName ? (
                           <span className="pkg-chip app-chip">{row.appName}</span>
                         ) : row.names.length > 0 ? (
@@ -138,10 +144,14 @@ export function PackagesView(props: {
                         )}
                         {row.event.flag && <span className="flag-chip">{row.event.flag}</span>}
                       </span>
-                      <span className="pkg-meta">
-                        {projectName(row.event.cwd)} · {agentLabel(row.event.agent)} ·{" "}
-                        {timeOf(row.event.ts)}
-                      </span>
+                      <span className="row-sub">{row.event.summary}</span>
+                    </span>
+                    <span className="row-meta">
+                      {projectName(row.event.cwd)} · {agentLabel(row.event.agent)} ·{" "}
+                      {timeOf(row.event.ts)}
+                    </span>
+                    <span className="row-action" aria-hidden="true">
+                      <InfoIcon />
                     </span>
                   </button>
                 </li>
@@ -157,6 +167,7 @@ export function PackagesView(props: {
           </button>
         </div>
       )}
+      <StatusBar left={`${filtered.length} of ${allFiltered.length} installs shown`} />
     </main>
   );
 }

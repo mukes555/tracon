@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { AgentEvent } from "../lib/types";
 import { projectName, timeOf } from "../lib/format";
-import { kindIcon } from "./icons";
+import { InfoIcon, TypeTile } from "./icons";
 
 // Sessions can hold hundreds of rows; rendering them all at once is what
 // makes a view feel heavy. Render the recent tail, reveal the rest on demand.
@@ -20,7 +20,7 @@ export function EventList(props: {
   const hidden = props.events.length - shown.length;
 
   return (
-    <ul className="events">
+    <ul className="rows">
       {hidden > 0 && (
         <li className="list-more">
           <button className="thread-btn" onClick={() => setLimit(Number.POSITIVE_INFINITY)}>
@@ -28,28 +28,31 @@ export function EventList(props: {
           </button>
         </li>
       )}
-      {shown.map((e, i) => (
-        <li key={e.id ?? i}>
-          <button
-            className={`event kind-${e.kind}${e.flag ? " flagged" : ""}`}
-            onClick={() => props.onOpen(e)}
-          >
-            <span className="event-time">{timeOf(e.ts)}</span>
-            <span className="event-kind">
-              <span className="event-icon">{kindIcon(e.kind, e.tool_name)}</span>
-              {e.tool_name ?? e.kind}
-            </span>
-            <span className="event-summary">
-              {props.showProject && (
-                <span className="event-project">{projectName(e.cwd)} · </span>
-              )}
-              {e.summary ?? ""}
-              {e.flag && <span className="flag-chip">{e.flag}</span>}
-              {props.advanced && <span className="src-chip">{e.source}</span>}
-            </span>
-          </button>
-        </li>
-      ))}
+      {shown.map((e, i) => {
+        const isPrompt = e.kind === "prompt";
+        return (
+          <li key={e.id ?? i}>
+            <button className={e.flag ? "row flagged" : "row"} onClick={() => props.onOpen(e)}>
+              <TypeTile kind={e.kind} toolName={e.tool_name} flagged={!!e.flag} />
+              <span className="row-main">
+                <span className="row-title">
+                  {isPrompt ? "Prompt" : (e.tool_name ?? e.kind)}
+                  {e.flag && <span className="flag-chip">{e.flag}</span>}
+                  {props.advanced && <span className="src-chip">{e.source}</span>}
+                </span>
+                <span className={isPrompt ? "row-sub prose" : "row-sub"}>
+                  {props.showProject && <span className="row-project">{projectName(e.cwd)} · </span>}
+                  {e.summary ?? ""}
+                </span>
+              </span>
+              <span className="row-meta">{timeOf(e.ts)}</span>
+              <span className="row-action" aria-hidden="true">
+                <InfoIcon />
+              </span>
+            </button>
+          </li>
+        );
+      })}
     </ul>
   );
 }
