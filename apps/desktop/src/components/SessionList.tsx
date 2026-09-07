@@ -3,6 +3,7 @@ import type { SessionSummary } from "../lib/types";
 import { agentCounts, agentLabel, groupByDay, projectName, timeOf } from "../lib/format";
 import { AgentChips } from "./AgentChips";
 import { GroupHead } from "./GroupHead";
+import { Mascot } from "./Mascot";
 
 export function SessionList(props: {
   sessions: SessionSummary[];
@@ -15,7 +16,7 @@ export function SessionList(props: {
   if (props.sessions.length === 0) {
     return (
       <div className="empty">
-        <img className="mascot" src="/mascot/capture-off.png" alt="" />
+        <Mascot name="capture-off" />
         <p>No agent activity recorded yet.</p>
         <p>
           Run any Claude Code, Codex, Cursor, or Gemini session and it appears
@@ -42,6 +43,7 @@ export function SessionList(props: {
       <input
         className="search sidebar-search"
         type="search"
+        aria-label="Filter sessions"
         placeholder="Filter sessions..."
         value={query}
         onChange={(e) => setQuery(e.target.value)}

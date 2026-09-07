@@ -1,7 +1,11 @@
 import { useEffect, useState } from "react";
+import { openPath, revealItemInDir } from "@tauri-apps/plugin-opener";
 import { api } from "../lib/api";
+import { ingestFailureText } from "../lib/captureSources";
 import { applyTheme, normalizeTheme, THEME_KEY } from "../lib/theme";
-import type { ThemeSetting } from "../lib/types";
+import type { CaptureStatus, ThemeSetting } from "../lib/types";
+import { useTransientNote } from "../lib/useTransientNote";
+import { ConfirmButton } from "./ConfirmButton";
 
 const THEMES: { value: ThemeSetting; label: string }[] = [
   { value: "dark", label: "Dark" },
@@ -9,13 +13,20 @@ const THEMES: { value: ThemeSetting; label: string }[] = [
   { value: "system", label: "System" },
 ];
 
-export function SettingsView() {
+export function SettingsView(props: {
+  paused: boolean;
+  onSetPaused: (paused: boolean) => Promise<void>;
+  capture: CaptureStatus | null;
+  eventCount: number;
+  onDeleteAll: () => Promise<void>;
+}) {
   const [theme, setTheme] = useState<ThemeSetting>("dark");
   const [intel, setIntel] = useState<boolean | null>(null);
   const [notify, setNotify] = useState(true);
   const [retention, setRetention] = useState("90");
   const [dataDir, setDataDir] = useState("");
-  const [saved, setSaved] = useState<string | null>(null);
+  const [version, setVersion] = useState("");
+  const { note, show } = useTransientNote();
 
   useEffect(() => {
     api.getSetting(THEME_KEY).then((v) => setTheme(normalizeTheme(v))).catch(() => {});
@@ -32,47 +43,93 @@ export function SettingsView() {
       .then((v) => setNotify(v !== "false"))
       .catch(() => {});
     api.dataDir().then(setDataDir).catch(() => {});
+    api.appVersion().then(setVersion).catch(() => {});
   }, []);
 
-  const toggleNotify = async () => {
+  // Every save reports the same way: the success line only once the
+  // recorder confirmed, "Could not save" otherwise.
+  const save = async (write: Promise<unknown>, doneText: string, revert?: () => void) => {
+    try {
+      await write;
+      show(doneText);
+    } catch {
+      revert?.();
+      show("Could not save", "bad");
+    }
+  };
+
+  const toggleNotify = () => {
     const next = !notify;
     setNotify(next);
-    await api.setSetting("notify_flags", next ? "true" : "false").catch(() => setNotify(!next));
-    note(next ? "Flag notifications on" : "Flag notifications off");
+    const text = next ? "Flag notifications on" : "Flag notifications off";
+    save(api.setSetting("notify_flags", String(next)), text, () => setNotify(!next));
   };
 
-  const note = (text: string) => {
-    setSaved(text);
-    setTimeout(() => setSaved(null), 2500);
-  };
-
-  const chooseTheme = async (value: ThemeSetting) => {
+  const chooseTheme = (value: ThemeSetting) => {
     setTheme(value);
     applyTheme(value);
-    await api.setSetting(THEME_KEY, value).catch(() => {});
-    note("Theme saved");
+    save(api.setSetting(THEME_KEY, value), "Theme saved");
   };
 
-  const toggleIntel = async () => {
+  const toggleIntel = () => {
     const next = !intel;
     setIntel(next);
-    await api.setSetting("threat_intel_enabled", next ? "true" : "false").catch(() => setIntel(!next));
-    note(next ? "Threat intelligence on" : "Threat intelligence off");
+    const text = next ? "Threat intelligence on" : "Threat intelligence off";
+    save(api.setSetting("threat_intel_enabled", String(next)), text, () => setIntel(!next));
   };
 
-  const saveRetention = async () => {
+  const saveRetention = () => {
     const days = parseInt(retention, 10);
     if (!Number.isFinite(days) || days < 1) return;
-    await api.setSetting("retention_days", String(days)).catch(() => {});
-    note(`Keeping ${days} days of history`);
+    save(api.setSetting("retention_days", String(days)), `Keeping ${days} days of history`);
   };
 
+  const setPaused = (paused: boolean) => {
+    save(props.onSetPaused(paused), paused ? "Capture paused" : "Capture resumed");
+  };
+
+  const revealLog = async () => {
+    try {
+      const path = await api.logPath();
+      // Older opener builds lack revealItemInDir; opening the file itself
+      // still gets the user to the log.
+      await revealItemInDir(path).catch(() => openPath(path));
+    } catch {
+      show("Could not open the log", "bad");
+    }
+  };
+
+  const ingestFailure = ingestFailureText(props.capture);
+
   return (
-    <main className="view settings">
+    <main className="view">
       <header className="view-head">
         <h1>Settings</h1>
-        {saved && <span className="saved-note">{saved}</span>}
+        {note && <span className={note.tone === "bad" ? "saved-note bad" : "saved-note"}>{note.text}</span>}
       </header>
+
+      <section className="card">
+        <h3>Capture</h3>
+        <div className="seg">
+          <button
+            className={props.paused ? "seg-item" : "seg-item active"}
+            onClick={() => setPaused(false)}
+          >
+            Recording
+          </button>
+          <button
+            className={props.paused ? "seg-item active" : "seg-item"}
+            onClick={() => setPaused(true)}
+          >
+            Paused
+          </button>
+        </div>
+        <p className="muted">
+          While paused, hooks and transcript tailing are ignored and nothing is
+          written. Agents keep running; Tracon just stops watching.
+        </p>
+        {ingestFailure && <p className="ingest-error">{ingestFailure}</p>}
+      </section>
 
       <section className="card">
         <h3>Appearance</h3>
@@ -142,10 +199,7 @@ export function SettingsView() {
         <div className="inline-field" style={{ marginTop: 12 }}>
           <button
             className="btn-dark"
-            onClick={async () => {
-              await api.importFullHistory().catch(() => {});
-              note("Importing full history in the background");
-            }}
+            onClick={() => save(api.importFullHistory(), "Importing full history in the background")}
           >
             Import full history
           </button>
@@ -156,15 +210,35 @@ export function SettingsView() {
       </section>
 
       <section className="card">
+        <h3>Data</h3>
+        <div className="inline-field">
+          <ConfirmButton
+            label="Delete everything"
+            confirmLabel={`Really delete ${props.eventCount.toLocaleString()} events?`}
+            onConfirm={props.onDeleteAll}
+          />
+          <span>removes every recorded session, event, and flag from this machine</span>
+        </div>
+      </section>
+
+      <section className="card">
         <h3>About</h3>
         <dl className="about">
+          <dt>Version</dt>
+          <dd>{version || "..."}</dd>
           <dt>Data location</dt>
           <dd>
             <code>{dataDir || "..."}</code>
           </dd>
+          <dt>Log file</dt>
+          <dd>
+            <button className="linkish" onClick={revealLog}>
+              Reveal log
+            </button>
+          </dd>
           <dt>Ingest endpoint</dt>
           <dd>
-            <code>http://localhost:48620/ingest</code> (localhost only)
+            <code>http://127.0.0.1:48620/ingest</code> (localhost only)
           </dd>
           <dt>Privacy</dt>
           <dd>Local-only by default. No telemetry. Tracon never modifies agent configs.</dd>

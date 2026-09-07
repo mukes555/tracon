@@ -1,5 +1,6 @@
 import type { AgentEvent, LiveSession } from "../lib/types";
-import { agentLabel, projectName, relTime, timeOf } from "../lib/format";
+import { agentLabel, hasTranscript, projectName, relTime, timeOf } from "../lib/format";
+import { Mascot } from "./Mascot";
 
 /// The security room: one monitor per active session, each streaming its
 /// recent events. Rows open the slide-over; the footer jumps to the full
@@ -23,7 +24,7 @@ export function LiveView(props: {
 
       {props.sessions.length === 0 ? (
         <div className="pkg-empty">
-          <img className="mascot" src="/mascot/live-quiet.png" alt="" />
+          <Mascot name="live-quiet" />
           <p>All quiet. No agents are working right now.</p>
           <p className="muted">
             Start a Claude Code, Codex, Cursor, or Gemini session and its
@@ -76,9 +77,11 @@ export function LiveView(props: {
                 </ul>
 
                 <footer className="cam-foot">
-                  <button className="thread-btn" onClick={() => props.onReadThread(s)}>
-                    Conversation
-                  </button>
+                  {hasTranscript(s.agent) && (
+                    <button className="thread-btn" onClick={() => props.onReadThread(s)}>
+                      Conversation
+                    </button>
+                  )}
                   <button className="ack-btn" onClick={() => props.onOpenSession(s.session_id)}>
                     Timeline
                   </button>

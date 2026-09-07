@@ -14,6 +14,7 @@ export function NavRail(props: {
   view: View;
   stats: Stats | null;
   liveCount: number;
+  paused: boolean;
   onNavigate: (v: View) => void;
 }) {
   const openFlags = props.stats?.flagged_count ?? 0;
@@ -44,9 +45,13 @@ export function NavRail(props: {
         </span>
         <span className="brand-text">
           <span className="brand-name">Tracon</span>
-          <span className="brand-sub">
-            {props.liveCount} live · {openFlags} open {openFlags === 1 ? "flag" : "flags"}
-          </span>
+          {props.paused ? (
+            <span className="brand-sub paused">capture paused</span>
+          ) : (
+            <span className="brand-sub">
+              {props.liveCount} live · {openFlags} open {openFlags === 1 ? "flag" : "flags"}
+            </span>
+          )}
         </span>
       </div>
       <ul>

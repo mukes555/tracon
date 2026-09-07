@@ -81,6 +81,7 @@ export function PackagesView(props: {
         <input
           className="search"
           type="search"
+          aria-label="Search packages"
           placeholder="Search packages, commands, projects..."
           value={query}
           onChange={(e) => setQuery(e.target.value)}
@@ -123,7 +124,7 @@ export function PackagesView(props: {
         groupByDay(filtered, (row) => row.event.ts).map((group) => (
           <section key={group.label} className="group">
             <GroupHead label={group.label} count={group.items.length} />
-            <ul className="rows">
+            <ul className="rows" role="listbox" aria-label={`${group.label} installs`}>
               {group.items.map((row, i) => (
                 <EventRow
                   key={row.event.id ?? i}

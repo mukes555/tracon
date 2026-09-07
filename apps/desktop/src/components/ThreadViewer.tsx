@@ -2,11 +2,13 @@ import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../lib/api";
 import type { ThreadMessage } from "../lib/types";
 import { agentLabel, timeOf } from "../lib/format";
+import { useFocusTrap } from "../lib/useFocusTrap";
 
 // Long sessions carry hundreds of large messages; rendering them all at once
 // makes opening the viewer visibly lag. Show a window (the tail, or centered
-// on the target) and reveal the rest only on request.
+// on the target) and widen it in steps only on request.
 const WINDOW = 200;
+const WIDEN_BY = 200;
 
 // Where the viewer is anchored: the flagged/clicked message, the very first
 // message, or the latest one. Start/End jumps re-anchor the window and scroll.
@@ -23,11 +25,12 @@ export const ThreadViewer = memo(function ThreadViewer(props: {
   onClose: () => void;
 }) {
   const [messages, setMessages] = useState<ThreadMessage[] | null>(null);
-  const [showAll, setShowAll] = useState(false);
+  const [windowSize, setWindowSize] = useState(WINDOW);
   // tick makes a repeated click on the same jump button scroll again.
   const [jump, setJump] = useState<{ to: Anchor; tick: number }>({ to: "target", tick: 0 });
   const listRef = useRef<HTMLUListElement>(null);
   const targetRef = useRef<HTMLLIElement>(null);
+  const dialogRef = useFocusTrap<HTMLDivElement>();
 
   useEffect(() => {
     api
@@ -50,10 +53,12 @@ export const ThreadViewer = memo(function ThreadViewer(props: {
   );
 
   const visible = useMemo(
-    () => windowFor(messages ?? [], targetIndex, jump.to, showAll),
-    [messages, targetIndex, jump, showAll],
+    () => windowFor(messages ?? [], targetIndex, jump.to, windowSize),
+    [messages, targetIndex, jump, windowSize],
   );
 
+  // Widening the window re-scrolls to the anchor so the reader keeps their
+  // place instead of landing on freshly inserted messages.
   useEffect(() => {
     if (messages === null) return;
     if (jump.to === "start") {
@@ -65,16 +70,19 @@ export const ThreadViewer = memo(function ThreadViewer(props: {
       return;
     }
     targetRef.current?.scrollIntoView({ block: "center" });
-  }, [messages, targetIndex, jump]);
+  }, [messages, targetIndex, jump, windowSize]);
 
   const jumpTo = (to: Anchor) => setJump((j) => ({ to, tick: j.tick + 1 }));
 
   return (
     <div className="palette-backdrop" onClick={props.onClose}>
       <div
+        ref={dialogRef}
         className="thread"
         role="dialog"
+        aria-modal="true"
         aria-label="Conversation"
+        tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
       >
         <header className="thread-head">
@@ -104,8 +112,8 @@ export const ThreadViewer = memo(function ThreadViewer(props: {
           <ul className="thread-list" ref={listRef}>
             {visible.hidden > 0 && (
               <li className="thread-more">
-                <button className="thread-btn" onClick={() => setShowAll(true)}>
-                  Show all {messages.length} messages
+                <button className="thread-btn" onClick={() => setWindowSize((n) => n + WIDEN_BY)}>
+                  Show {Math.min(WIDEN_BY, visible.hidden)} more ({visible.hidden} hidden)
                 </button>
               </li>
             )}
@@ -149,22 +157,22 @@ function windowFor(
   messages: ThreadMessage[],
   targetIndex: number | null,
   anchor: Anchor,
-  showAll: boolean,
+  size: number,
 ): { start: number; msgs: ThreadMessage[]; hidden: number } {
-  if (showAll || messages.length <= WINDOW) {
+  if (messages.length <= size) {
     return { start: 0, msgs: messages, hidden: 0 };
   }
-  const hidden = messages.length - WINDOW;
-  const tailStart = messages.length - WINDOW;
+  const hidden = messages.length - size;
+  const tailStart = messages.length - size;
 
   if (anchor === "start") {
-    return { start: 0, msgs: messages.slice(0, WINDOW), hidden };
+    return { start: 0, msgs: messages.slice(0, size), hidden };
   }
   if (anchor === "end" || targetIndex === null) {
     return { start: tailStart, msgs: messages.slice(tailStart), hidden };
   }
-  const start = Math.max(0, Math.min(tailStart, targetIndex - WINDOW / 2));
-  return { start, msgs: messages.slice(start, start + WINDOW), hidden };
+  const start = Math.max(0, Math.min(tailStart, targetIndex - Math.floor(size / 2)));
+  return { start, msgs: messages.slice(start, start + size), hidden };
 }
 
 function bubbleClass(role: string, highlighted: boolean): string {

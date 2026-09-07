@@ -18,6 +18,8 @@ const NAV_ITEMS: { label: string; view: View }[] = [
   { label: "Go to Settings", view: "settings" },
 ];
 
+const NO_HITS: AgentEvent[] = [];
+
 export function CommandPalette(props: {
   sessions: SessionSummary[];
   onNavigate: (v: View) => void;
@@ -26,24 +28,45 @@ export function CommandPalette(props: {
   onClose: () => void;
 }) {
   const [query, setQuery] = useState("");
-  const [hits, setHits] = useState<AgentEvent[]>([]);
+  const [hits, setHits] = useState<AgentEvent[]>(NO_HITS);
+  const [searching, setSearching] = useState(false);
   const [active, setActive] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  const activeRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
 
-  // Debounced global search across all recorded history.
+  // Debounced global search across all recorded history. Typing fast fires
+  // overlapping searches; a reply for an older query must not replace the
+  // newer one.
   useEffect(() => {
     if (query.trim().length < 2) {
-      setHits([]);
+      setHits(NO_HITS);
+      setSearching(false);
       return;
     }
+    let stale = false;
+    setSearching(true);
     const timer = setTimeout(() => {
-      api.searchEvents(query).then(setHits).catch(() => setHits([]));
+      api
+        .searchEvents(query)
+        .then((found) => {
+          if (stale) return;
+          setHits(found);
+          setSearching(false);
+        })
+        .catch(() => {
+          if (stale) return;
+          setHits(NO_HITS);
+          setSearching(false);
+        });
     }, 180);
-    return () => clearTimeout(timer);
+    return () => {
+      stale = true;
+      clearTimeout(timer);
+    };
   }, [query]);
 
   const items = useMemo<Item[]>(() => {
@@ -51,12 +74,14 @@ export function CommandPalette(props: {
     const nav: Item[] = NAV_ITEMS.filter((n) => !q || n.label.toLowerCase().includes(q)).map(
       (n) => ({ kind: "nav", ...n }),
     );
+    // With nothing typed the palette is a menu, so navigation leads; once
+    // there is a query the matches lead and navigation trails.
+    if (!q) return nav;
     const sessions: Item[] = props.sessions
       .filter(
         (s) =>
-          q &&
-          (projectName(s.cwd).toLowerCase().includes(q) ||
-            (s.first_prompt ?? "").toLowerCase().includes(q)),
+          projectName(s.cwd).toLowerCase().includes(q) ||
+          (s.first_prompt ?? "").toLowerCase().includes(q),
       )
       .slice(0, 5)
       .map((s) => ({
@@ -71,7 +96,11 @@ export function CommandPalette(props: {
 
   useEffect(() => {
     setActive(0);
-  }, [query, hits.length]);
+  }, [query, hits]);
+
+  useEffect(() => {
+    activeRef.current?.scrollIntoView({ block: "nearest" });
+  }, [active]);
 
   const choose = (item: Item) => {
     if (item.kind === "nav") props.onNavigate(item.view);
@@ -98,6 +127,7 @@ export function CommandPalette(props: {
     }
   };
 
+  const tooShort = query.trim().length < 2;
   return (
     <div className="palette-backdrop" onClick={props.onClose}>
       <div
@@ -109,20 +139,20 @@ export function CommandPalette(props: {
         <input
           ref={inputRef}
           className="palette-input"
+          aria-label="Search everything your agents did"
           placeholder="Search everything your agents did..."
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={onKeyDown}
         />
         <ul className="palette-list">
-          {items.length === 0 && (
-            <li className="palette-empty">
-              {query.trim().length < 2 ? "Type to search all history" : "No matches"}
-            </li>
+          {items.length === 0 && !searching && (
+            <li className="palette-empty">{tooShort ? "Type to search all history" : "No matches"}</li>
           )}
           {items.map((item, i) => (
             <li key={i}>
               <button
+                ref={i === active ? activeRef : undefined}
                 className={i === active ? "palette-item active" : "palette-item"}
                 onMouseEnter={() => setActive(i)}
                 onClick={() => choose(item)}
@@ -154,6 +184,7 @@ export function CommandPalette(props: {
               </button>
             </li>
           ))}
+          {searching && <li className="palette-searching">Searching</li>}
         </ul>
         <div className="palette-foot">
           <kbd className="kbd">↑↓</kbd> navigate

@@ -44,6 +44,7 @@ export type ChangeToken = {
   open_flags: number;
   acked_flags: number;
   live_sessions: number;
+  paused: boolean;
 };
 
 export type ThreadMessage = {
@@ -71,7 +72,11 @@ export type CaptureStatus = {
   claude_dir_found: boolean;
   codex_dir_found: boolean;
   cursor_found: boolean;
+  gemini_found: boolean;
   counts: CaptureCount[];
+  /// Rows the ingest path could not write; last_error says why.
+  insert_failures: number;
+  last_error: string | null;
 };
 
 export type View = "overview" | "live" | "timeline" | "packages" | "flagged" | "settings";

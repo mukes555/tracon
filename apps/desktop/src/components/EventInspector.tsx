@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { api } from "../lib/api";
 import { flagWhy, severityOf } from "../lib/flags";
 import type { AgentEvent } from "../lib/types";
-import { agentLabel, kindLabel, projectName, timeOf } from "../lib/format";
+import { agentLabel, hasTranscript, kindLabel, projectName, timeOf } from "../lib/format";
+import { useFocusTrap } from "../lib/useFocusTrap";
 import { ChevronIcon, TypeTile } from "./icons";
 
 export type EventInspectorProps = {
@@ -97,9 +98,11 @@ export function EventInspector(props: EventInspectorProps) {
             {props.acked ? "Reopen" : "Acknowledge"}
           </button>
         )}
-        <button className={e.flag ? "ack-btn" : "btn-dark"} onClick={() => props.onReadThread(e)}>
-          Read thread
-        </button>
+        {hasTranscript(e.agent) && (
+          <button className={e.flag ? "ack-btn" : "btn-dark"} onClick={() => props.onReadThread(e)}>
+            Read thread
+          </button>
+        )}
         <button className="ack-btn" onClick={() => props.onOpenSession(e.session_id)}>
           View in timeline
         </button>
@@ -133,11 +136,20 @@ export function EventInspector(props: EventInspectorProps) {
 }
 
 /// Narrow windows: the same inspector as a slide-over with a backdrop.
-/// Escape is handled once, app-wide.
+/// Escape is handled once, app-wide; focus is trapped here.
 export function DetailPanel(props: EventInspectorProps) {
+  const drawerRef = useFocusTrap<HTMLElement>();
   return (
     <div className="drawer-backdrop" onClick={props.onClose}>
-      <aside className="drawer" role="dialog" aria-label="Event detail" onClick={(ev) => ev.stopPropagation()}>
+      <aside
+        ref={drawerRef}
+        className="drawer"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Event detail"
+        tabIndex={-1}
+        onClick={(ev) => ev.stopPropagation()}
+      >
         <EventInspector {...props} />
       </aside>
     </div>

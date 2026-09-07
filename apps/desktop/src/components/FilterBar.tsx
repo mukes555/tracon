@@ -21,6 +21,7 @@ export function FilterBar(props: {
       <input
         className="search"
         type="search"
+        aria-label="Search events"
         placeholder="Search events..."
         value={props.query}
         onChange={(e) => props.onQuery(e.target.value)}

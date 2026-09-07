@@ -1,9 +1,10 @@
 import type { AgentEvent, CaptureStatus, SessionSummary, Stats, View } from "../lib/types";
 import { CAPTURE_SOURCES, sourceEventCount } from "../lib/captureSources";
-import { agentLabel, durationLabel, projectName, relTime } from "../lib/format";
+import { agentLabel, durationLabel, hasTranscript, projectName, relTime } from "../lib/format";
+import { ConfirmButton } from "./ConfirmButton";
 import { EventInspector, type EventInspectorProps } from "./EventInspector";
 
-type Context = {
+export type InspectorContext = {
   view: View;
   session: SessionSummary | null;
   sessionEvents: AgentEvent[];
@@ -15,6 +16,7 @@ type Context = {
   onNavigate: (view: View) => void;
   onReadSession: (session: SessionSummary) => void;
   onExportSession: () => void;
+  onDeleteSession: (sessionId: string) => void;
 };
 
 /// Wide windows: the docked right column. With an event selected it is the
@@ -22,7 +24,7 @@ type Context = {
 /// the open session on Timeline or today's numbers everywhere else, so the
 /// space is never blank.
 export function InspectorPane(
-  props: Omit<EventInspectorProps, "event"> & { event: AgentEvent | null; context: Context },
+  props: Omit<EventInspectorProps, "event"> & { event: AgentEvent | null; context: InspectorContext },
 ) {
   const { context } = props;
   const sessionOpen = context.view === "timeline" && context.session !== null;
@@ -39,7 +41,7 @@ export function InspectorPane(
   );
 }
 
-function SessionCard(props: Context & { session: SessionSummary }) {
+function SessionCard(props: InspectorContext & { session: SessionSummary }) {
   const s = props.session;
   const flaggedHere = props.sessionEvents.filter((e) => e.flag);
   const hasGap = s.hook_tool_count > 0 && s.tail_tool_count > 0;
@@ -82,12 +84,19 @@ function SessionCard(props: Context & { session: SessionSummary }) {
       )}
 
       <div className="insp-actions">
-        <button className="btn-dark" onClick={() => props.onReadSession(s)}>
-          Conversation
-        </button>
+        {hasTranscript(s.agent) && (
+          <button className="btn-dark" onClick={() => props.onReadSession(s)}>
+            Conversation
+          </button>
+        )}
         <button className="ack-btn" onClick={props.onExportSession}>
           Export JSON
         </button>
+        <ConfirmButton
+          label="Delete session"
+          confirmLabel={`Really delete ${s.event_count} events?`}
+          onConfirm={() => props.onDeleteSession(s.session_id)}
+        />
       </div>
 
       {flaggedHere.length > 0 && (
@@ -111,12 +120,14 @@ function SessionCard(props: Context & { session: SessionSummary }) {
   );
 }
 
-function TodayCard(props: Context) {
+function TodayCard(props: InspectorContext) {
   const st = props.stats;
   const n = (value: number | undefined) => value?.toLocaleString() ?? "-";
   return (
     <>
-      <img className="inspector-mascot" src="/mascot/inspector.png" alt="" />
+      <span className="mascot-wrap inspector-mascot-wrap">
+        <img className="inspector-mascot" src="/mascot/inspector.png" alt="" />
+      </span>
       <section className="insp-section">
         <h3>Today</h3>
         <dl className="insp-stats">

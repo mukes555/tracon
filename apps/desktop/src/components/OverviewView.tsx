@@ -1,9 +1,7 @@
-import { useState } from "react";
 import type { AgentEvent, CaptureStatus, DayCount, LiveSession, Stats, View } from "../lib/types";
 import { agentLabel, projectName, relTime } from "../lib/format";
-import { CAPTURE_SOURCES, sourceEventCount } from "../lib/captureSources";
+import { CaptureCard } from "./CaptureCard";
 import { EventRow } from "./EventRow";
-import { CheckIcon } from "./icons";
 
 export function OverviewView(props: {
   stats: Stats | null;
@@ -15,20 +13,20 @@ export function OverviewView(props: {
   advanced: boolean;
   onNavigate: (v: View) => void;
   onOpenEvent: (event: AgentEvent) => void;
-  onAck: (event: AgentEvent) => void;
+  onAck: (event: AgentEvent, acked: boolean) => void;
   onOpenSession: (sessionId: string) => void;
 }) {
   const { stats } = props;
   const liveDetails = props.advanced;
   return (
-    <main className="view overview">
+    <main className="view">
       <header className="view-head">
         <h1>Overview</h1>
         <p className="view-sub">What your AI agents did on this machine.</p>
       </header>
 
       {props.liveSessions.length > 0 && (
-        <section className="card live-card">
+        <section className="card">
           <h3>Live now</h3>
           <ul className="live-list">
             {props.liveSessions.map((s) => (
@@ -98,24 +96,9 @@ export function OverviewView(props: {
           {props.recentFlagged.length === 0 ? (
             <p className="muted">Nothing flagged. Quiet skies.</p>
           ) : (
-            <ul className="rows flush">
+            <ul className="rows flush" role="listbox" aria-label="Recent flags">
               {props.recentFlagged.slice(0, 5).map((e, i) => (
-                <EventRow
-                  key={e.id ?? i}
-                  event={e}
-                  showProject
-                  onOpen={props.onOpenEvent}
-                  action={
-                    <button
-                      className="row-action-btn ack"
-                      title="Acknowledge"
-                      aria-label="Acknowledge"
-                      onClick={() => props.onAck(e)}
-                    >
-                      <CheckIcon size={14} />
-                    </button>
-                  }
-                />
+                <EventRow key={e.id ?? i} event={e} showProject onOpen={props.onOpenEvent} onAck={props.onAck} />
               ))}
             </ul>
           )}
@@ -131,7 +114,7 @@ export function OverviewView(props: {
           {props.recentPackages.length === 0 ? (
             <p className="muted">No package installs recorded yet.</p>
           ) : (
-            <ul className="rows flush">
+            <ul className="rows flush" role="listbox" aria-label="Recent packages">
               {props.recentPackages.slice(0, 5).map((e, i) => (
                 <EventRow key={e.id ?? i} event={e} showProject onOpen={props.onOpenEvent} />
               ))}
@@ -190,64 +173,4 @@ function fillMissingDays(days: DayCount[], count: number): DayCount[] {
     out.push(byDay.get(key) ?? { day: key, events: 0, flagged: 0 });
   }
   return out;
-}
-
-function CaptureCard(props: { capture: CaptureStatus | null }) {
-  const [openKey, setOpenKey] = useState<string | null>(null);
-  const [copiedKey, setCopiedKey] = useState<string | null>(null);
-  if (!props.capture) return null;
-  const capture = props.capture;
-
-  const copy = async (key: string, text: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopiedKey(key);
-      setTimeout(() => setCopiedKey(null), 2500);
-    } catch {
-      // Clipboard unavailable; the snippet is still visible to copy by hand.
-    }
-  };
-
-  return (
-    <section className="card">
-      <h3>Capture sources</h3>
-      <ul className="setup-list">
-        {CAPTURE_SOURCES.map((s) => {
-          const count = sourceEventCount(capture, s);
-          const live = count > 0;
-          const expandable = !live && !s.auto;
-          return (
-            <li key={s.key}>
-              <button
-                className="setup-row"
-                onClick={() => expandable && setOpenKey(openKey === s.key ? null : s.key)}
-                disabled={!expandable}
-              >
-                <span className={live ? "dot ok" : "dot"} />
-                <span className="capture-label">{s.label}</span>
-                <span className="capture-detail">
-                  {live
-                    ? `live · ${count} events`
-                    : (s.auto ?? "not connected · click to set up")}
-                </span>
-              </button>
-              {openKey === s.key && s.how && (
-                <div className="setup-detail">
-                  <p className="muted">{s.how}</p>
-                  {s.snippet && (
-                    <div className="snippet-row">
-                      <code className="snippet">{s.snippet}</code>
-                      <button className="chip" onClick={() => copy(s.key, s.snippet ?? "")}>
-                        {copiedKey === s.key ? "copied" : "copy"}
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
-            </li>
-          );
-        })}
-      </ul>
-    </section>
-  );
 }

@@ -61,6 +61,12 @@ export function agentLabel(agent: string): string {
   return agent;
 }
 
+/** Only these agents keep a conversation transcript Tracon can read; the
+    Conversation buttons hide for the rest instead of opening an empty view. */
+export function hasTranscript(agent: string): boolean {
+  return agent === "claude-code" || agent === "codex";
+}
+
 /** Per-agent counts for filter chips, largest first. */
 export function agentCounts(items: { agent: string }[]): [string, number][] {
   const counts = new Map<string, number>();

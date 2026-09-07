@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "../lib/api";
 import type { AgentEvent } from "../lib/types";
 import { agentCounts, projectName } from "../lib/format";
@@ -6,7 +6,8 @@ import { type Category, categoryOf, type Severity, severityOf } from "../lib/fla
 import { AgentChips } from "./AgentChips";
 import { EventRow } from "./EventRow";
 import { GroupHead } from "./GroupHead";
-import { CheckIcon, FlagIcon } from "./icons";
+import { FlagIcon } from "./icons";
+import { Mascot } from "./Mascot";
 import { KeyHints, StatusBar } from "./StatusBar";
 
 const CATEGORY_LABELS: { key: Category | "all"; label: string }[] = [
@@ -29,12 +30,17 @@ const SEVERITY_LABELS: { severity: Severity; label: string }[] = [
 
 // Rendering hundreds of rows at once is what makes the view feel heavy.
 const INITIAL_ROWS = 120;
+const NO_EVENTS: AgentEvent[] = [];
 
 type Row = { event: AgentEvent; category: Category; severity: Severity };
+// null while loading, "error" when the fetch failed.
+type AckedList = AgentEvent[] | null | "error";
 
 export function FlaggedView(props: {
   flagged: AgentEvent[];
   ackedCount: number;
+  /// Bumps whenever flags change through the UI (ack, reopen, undo).
+  flagsVersion: number;
   selectedId?: number;
   onAck: (event: AgentEvent, acked: boolean) => Promise<void>;
   onAckMany: (events: AgentEvent[], acked: boolean) => Promise<void>;
@@ -43,7 +49,7 @@ export function FlaggedView(props: {
   onVisibleRows: (events: AgentEvent[], acked: boolean) => void;
 }) {
   const [bucket, setBucket] = useState<"open" | "acked">("open");
-  const [ackedList, setAckedList] = useState<AgentEvent[]>([]);
+  const [ackedList, setAckedList] = useState<AckedList>(null);
   const [category, setCategory] = useState<Category | "all">("all");
   const [agent, setAgent] = useState("all");
   const [query, setQuery] = useState("");
@@ -51,13 +57,28 @@ export function FlaggedView(props: {
   const showingAcked = bucket === "acked";
 
   // Any change to the open list (ack, reopen, undo) can change the acked
-  // list too, so it refetches on both counters.
+  // list too, so it refetches on the counter and the version, never on the
+  // open array's identity (which changes every poll). The previous list
+  // stays on screen while the refetch runs; only the first load shows the
+  // skeleton.
   useEffect(() => {
     if (!showingAcked) return;
-    api.flaggedEvents(true).then(setAckedList).catch(() => {});
-  }, [showingAcked, props.ackedCount, props.flagged]);
+    let stale = false;
+    api
+      .flaggedEvents(true)
+      .then((list) => {
+        if (!stale) setAckedList(list);
+      })
+      .catch(() => {
+        if (!stale) setAckedList("error");
+      });
+    return () => {
+      stale = true;
+    };
+  }, [showingAcked, props.ackedCount, props.flagsVersion]);
 
-  const source = showingAcked ? ackedList : props.flagged;
+  const ackedLoaded = Array.isArray(ackedList);
+  const source = showingAcked ? (ackedLoaded ? ackedList : NO_EVENTS) : props.flagged;
   const rows = useMemo<Row[]>(
     () =>
       source.map((event) => ({
@@ -115,11 +136,20 @@ export function FlaggedView(props: {
     () => shownGroups.flatMap((g) => g.shown.map((row) => row.event)),
     [shownGroups],
   );
-  const { onVisibleRows } = props;
+  const { onVisibleRows, onOpenEvent } = props;
   useEffect(() => {
     onVisibleRows(visibleEvents, showingAcked);
     return () => onVisibleRows([], false);
   }, [visibleEvents, showingAcked, onVisibleRows]);
+
+  // Stable per-bucket handlers keep the memoized rows from re-rendering.
+  const openRow = useCallback(
+    (event: AgentEvent) => onOpenEvent(event, showingAcked),
+    [onOpenEvent, showingAcked],
+  );
+
+  const ackedEmpty = showingAcked && ackedLoaded && rows.length === 0;
+  const openEmpty = !showingAcked && rows.length === 0;
 
   return (
     <main className="view">
@@ -149,6 +179,7 @@ export function FlaggedView(props: {
         <input
           className="search"
           type="search"
+          aria-label="Search flagged events"
           placeholder="Search flagged commands, reasons, projects..."
           value={query}
           onChange={(e) => setQuery(e.target.value)}
@@ -172,17 +203,18 @@ export function FlaggedView(props: {
 
       <AgentChips counts={agentCounts(source)} value={agent} onChange={setAgent} />
 
-      {filtered.length === 0 ? (
+      {showingAcked && ackedList === null && <RowsSkeleton />}
+      {showingAcked && ackedList === "error" && (
+        <p className="list-error">Could not load acknowledged flags. It retries on the next change.</p>
+      )}
+
+      {(ackedLoaded || !showingAcked) && filtered.length === 0 ? (
         <div className="pkg-empty">
-          {!showingAcked && rows.length === 0 ? (
-            <img className="mascot" src="/mascot/inbox-zero.png" alt="" />
-          ) : (
-            <FlagIcon size={34} />
-          )}
+          {openEmpty ? <Mascot name="inbox-zero" /> : <FlagIcon size={34} />}
           <p>
-            {showingAcked
+            {ackedEmpty
               ? "Nothing acknowledged yet."
-              : rows.length === 0
+              : openEmpty
                 ? "Inbox zero. Quiet skies."
                 : "Nothing matches this filter."}
           </p>
@@ -205,24 +237,16 @@ export function FlaggedView(props: {
                 )
               }
             />
-            <ul className="rows">
+            <ul className="rows" role="listbox" aria-label={`${group.label} flags`}>
               {group.shown.map((row, i) => (
                 <EventRow
                   key={row.event.id ?? i}
                   event={row.event}
                   selected={row.event.id !== undefined && row.event.id === props.selectedId}
                   showProject
-                  onOpen={(e) => props.onOpenEvent(e, showingAcked)}
-                  action={
-                    <button
-                      className={showingAcked ? "row-action-btn" : "row-action-btn ack"}
-                      title={showingAcked ? "Reopen" : "Acknowledge"}
-                      aria-label={showingAcked ? "Reopen" : "Acknowledge"}
-                      onClick={() => props.onAck(row.event, !showingAcked)}
-                    >
-                      <CheckIcon size={14} />
-                    </button>
-                  }
+                  acked={showingAcked}
+                  onAck={props.onAck}
+                  onOpen={openRow}
                 />
               ))}
             </ul>
@@ -241,5 +265,15 @@ export function FlaggedView(props: {
         right={<KeyHints ack={!showingAcked} />}
       />
     </main>
+  );
+}
+
+function RowsSkeleton() {
+  return (
+    <ul className="rows" aria-busy="true" aria-label="Loading">
+      <li className="row-skeleton" />
+      <li className="row-skeleton" />
+      <li className="row-skeleton" />
+    </ul>
   );
 }

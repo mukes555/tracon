@@ -21,4 +21,11 @@ export const api = {
   importFullHistory: () => invoke<string>("import_full_history"),
   getSetting: (key: string) => invoke<string | null>("get_setting", { key }),
   setSetting: (key: string, value: string) => invoke("set_setting", { key, value }),
+  capturePaused: () => invoke<boolean>("capture_paused"),
+  setCapturePaused: (paused: boolean) => invoke<void>("set_capture_paused", { paused }),
+  /// Both purges resolve to the number of rows removed.
+  purgeAll: () => invoke<number>("purge_all"),
+  purgeSession: (sessionId: string) => invoke<number>("purge_session", { sessionId }),
+  appVersion: () => invoke<string>("app_version"),
+  logPath: () => invoke<string>("log_path"),
 };

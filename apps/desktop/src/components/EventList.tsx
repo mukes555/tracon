@@ -27,9 +27,9 @@ export function EventList(props: {
   }, [shown, onVisibleRows]);
 
   return (
-    <ul className="rows">
+    <ul className="rows" role="listbox" aria-label="Session events">
       {hidden > 0 && (
-        <li className="list-more">
+        <li className="list-more" role="none">
           <button className="thread-btn" onClick={() => setLimit(Number.POSITIVE_INFINITY)}>
             Show {hidden} earlier events
           </button>

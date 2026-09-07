@@ -1,5 +1,6 @@
 import type { AgentEvent, KindFilter, SessionSummary } from "../lib/types";
-import { agentLabel, durationLabel, projectName, relTime } from "../lib/format";
+import { agentLabel, durationLabel, hasTranscript, projectName, relTime } from "../lib/format";
+import { ConfirmButton } from "./ConfirmButton";
 import { EventList } from "./EventList";
 import { FilterBar } from "./FilterBar";
 import { SessionList } from "./SessionList";
@@ -23,6 +24,7 @@ export function TimelineView(props: {
   onQuery: (q: string) => void;
   onKind: (k: KindFilter) => void;
   onExport: () => void;
+  onDelete: (sessionId: string) => void;
   onReadThread: (session: SessionSummary) => void;
   onOpen: (event: AgentEvent) => void;
   onVisibleRows: (events: AgentEvent[]) => void;
@@ -41,6 +43,7 @@ export function TimelineView(props: {
                 session={s}
                 live={props.live}
                 onExport={props.onExport}
+                onDelete={() => props.onDelete(s.session_id)}
                 onReadThread={() => props.onReadThread(s)}
               />
               <FilterBar query={props.query} onQuery={props.onQuery} kind={props.kind} onKind={props.onKind} />
@@ -77,6 +80,7 @@ function SessionHeader(props: {
   session: SessionSummary;
   live: boolean;
   onExport: () => void;
+  onDelete: () => void;
   onReadThread: () => void;
 }) {
   const s = props.session;
@@ -102,12 +106,19 @@ function SessionHeader(props: {
         </p>
       </div>
       <div className="session-actions">
-        <button className="btn-dark" onClick={props.onReadThread}>
-          Conversation
-        </button>
+        {hasTranscript(s.agent) && (
+          <button className="btn-dark" onClick={props.onReadThread}>
+            Conversation
+          </button>
+        )}
         <button className="ack-btn" onClick={props.onExport}>
           Export JSON
         </button>
+        <ConfirmButton
+          label="Delete session"
+          confirmLabel={`Really delete ${s.event_count} events?`}
+          onConfirm={props.onDelete}
+        />
       </div>
     </div>
   );
