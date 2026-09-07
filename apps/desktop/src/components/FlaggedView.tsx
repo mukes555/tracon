@@ -137,7 +137,11 @@ export function FlaggedView(props: {
 
       {filtered.length === 0 ? (
         <div className="pkg-empty">
-          <FlagIcon size={34} />
+          {bucket === "open" && rows.length === 0 ? (
+            <img className="mascot" src="/mascot/inbox-zero.png" alt="" />
+          ) : (
+            <FlagIcon size={34} />
+          )}
           <p>
             {bucket === "acked"
               ? "Nothing acknowledged yet."

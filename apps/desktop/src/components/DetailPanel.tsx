@@ -86,7 +86,7 @@ export function InspectorPane(props: Omit<InspectorProps, "event"> & { event: Ag
         <div className="inspector-empty">
           <img
             className="inspector-mascot"
-            src="/mascot-avatar.png"
+            src="/mascot/inspector.png"
             alt=""
             onError={(ev) => {
               ev.currentTarget.hidden = true;

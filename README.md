@@ -1,10 +1,6 @@
 <div align="center">
 
-<img src="apps/desktop/app-icon.png" width="96" alt="Tracon logo: a bold forest green T on a bright green tile" />
-
-# Tracon
-
-**The flight recorder for AI coding agents.**
+<img src="docs/media/banner.png" width="800" alt="Tracon: a quokka in sunglasses holding a coffee mug next to the wordmark and the tagline Flight recorder for AI coding agents" />
 
 See everything Claude Code, Codex, Cursor, and Gemini CLI do on your machine: every command, every file edit, every package install, with dangerous actions flagged for review. Local-only, open source, never in the agent's way.
 

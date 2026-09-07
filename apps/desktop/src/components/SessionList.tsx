@@ -14,6 +14,7 @@ export function SessionList(props: {
   if (props.sessions.length === 0) {
     return (
       <div className="empty">
+        <img className="mascot" src="/mascot/capture-off.png" alt="" />
         <p>No agent activity recorded yet.</p>
         <p>
           Run any Claude Code, Codex, Cursor, or Gemini session and it appears

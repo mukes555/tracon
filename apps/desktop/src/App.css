@@ -1892,6 +1892,15 @@ code {
   background: var(--accent-soft);
 }
 
+/* Mascot illustrations for empty states; the PNGs carry their own
+   soft shadow, so no frame. */
+.pkg-empty .mascot,
+.empty .mascot {
+  width: 190px;
+  height: auto;
+  margin-bottom: 4px;
+}
+
 .pkg-empty p:first-of-type {
   color: var(--ink-2);
   font-size: 14.5px;
@@ -2370,11 +2379,10 @@ code {
 }
 
 .inspector-mascot {
-  width: 96px;
-  height: 96px;
+  width: 150px;
+  height: 150px;
   object-fit: contain;
   margin-bottom: 8px;
-  opacity: 0.9;
 }
 
 /* ---------- misc ---------- */
@@ -2384,6 +2392,7 @@ code {
   font-size: 14px;
   padding: 24px 8px;
   line-height: 1.6;
+  text-align: center;
 }
 
 .empty p + p {

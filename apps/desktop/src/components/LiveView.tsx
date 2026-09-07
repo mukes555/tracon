@@ -1,6 +1,5 @@
 import type { AgentEvent, LiveSession } from "../lib/types";
 import { agentLabel, projectName, relTime, timeOf } from "../lib/format";
-import { CamIcon } from "./icons";
 
 /// The security room: one monitor per active session, each streaming its
 /// recent events. Rows open the slide-over; the footer jumps to the full
@@ -24,7 +23,7 @@ export function LiveView(props: {
 
       {props.sessions.length === 0 ? (
         <div className="pkg-empty">
-          <CamIcon size={34} />
+          <img className="mascot" src="/mascot/live-quiet.png" alt="" />
           <p>All quiet. No agents are working right now.</p>
           <p className="muted">
             Start a Claude Code, Codex, Cursor, or Gemini session and its
