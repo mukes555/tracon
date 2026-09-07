@@ -1,6 +1,8 @@
 import { useState } from "react";
 import type { AgentEvent, CaptureStatus, DayCount, LiveSession, Stats, View } from "../lib/types";
-import { agentLabel, projectName, relTime, timeOf } from "../lib/format";
+import { agentLabel, projectName, relTime } from "../lib/format";
+import { EventRow } from "./EventRow";
+import { CheckIcon } from "./icons";
 
 export function OverviewView(props: {
   stats: Stats | null;
@@ -107,20 +109,24 @@ export function OverviewView(props: {
           {props.recentFlagged.length === 0 ? (
             <p className="muted">Nothing flagged. Quiet skies.</p>
           ) : (
-            <ul className="flag-inbox">
+            <ul className="rows flush">
               {props.recentFlagged.slice(0, 5).map((e, i) => (
-                <li key={e.id ?? i} className="flag-inbox-row">
-                  <button className="flag-inbox-body" onClick={() => props.onOpenEvent(e)}>
-                    <span className="flag-chip">{e.flag}</span>
-                    <span className="flag-inbox-cmd">{e.summary}</span>
-                    <span className="flag-inbox-meta">
-                      {projectName(e.cwd)} · {timeOf(e.ts)}
-                    </span>
-                  </button>
-                  <button className="ack-btn" onClick={() => props.onAck(e)}>
-                    Ack
-                  </button>
-                </li>
+                <EventRow
+                  key={e.id ?? i}
+                  event={e}
+                  showProject
+                  onOpen={props.onOpenEvent}
+                  action={
+                    <button
+                      className="row-action-btn ack"
+                      title="Acknowledge"
+                      aria-label="Acknowledge"
+                      onClick={() => props.onAck(e)}
+                    >
+                      <CheckIcon size={14} />
+                    </button>
+                  }
+                />
               ))}
             </ul>
           )}
@@ -136,10 +142,11 @@ export function OverviewView(props: {
           {props.recentPackages.length === 0 ? (
             <p className="muted">No package installs recorded yet.</p>
           ) : (
-            <MiniList
-              events={props.recentPackages.slice(0, 5)}
-              onOpen={props.onOpenEvent}
-            />
+            <ul className="rows flush">
+              {props.recentPackages.slice(0, 5).map((e, i) => (
+                <EventRow key={e.id ?? i} event={e} showProject onOpen={props.onOpenEvent} />
+              ))}
+            </ul>
           )}
         </section>
       </div>
@@ -198,27 +205,6 @@ function fillMissingDays(days: DayCount[], count: number): DayCount[] {
     out.push(byDay.get(key) ?? { day: key, events: 0, flagged: 0 });
   }
   return out;
-}
-
-function MiniList(props: {
-  events: AgentEvent[];
-  onOpen: (event: AgentEvent) => void;
-}) {
-  return (
-    <ul className="mini-list">
-      {props.events.map((e, i) => (
-        <li key={e.id ?? i}>
-          <button className="mini-row" onClick={() => props.onOpen(e)}>
-            <span className="mini-time">{timeOf(e.ts)}</span>
-            <span className="mini-body">
-              <span className="mini-project">{projectName(e.cwd)}</span>
-              <span className="mini-summary">{e.summary}</span>
-            </span>
-          </button>
-        </li>
-      ))}
-    </ul>
-  );
 }
 
 const CURSOR_HOOK_CMD =

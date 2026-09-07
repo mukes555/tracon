@@ -3,10 +3,10 @@ import { api } from "../lib/api";
 import type { AgentEvent } from "../lib/types";
 // Rows open the app-wide slide-over (DetailPanel) instead of expanding
 // inline; payload fetching lives there now.
-import { agentCounts, agentLabel, groupByDay, projectName, severityOf, timeOf } from "../lib/format";
+import { agentCounts, groupByDay, projectName } from "../lib/format";
 import { AgentChips } from "./AgentChips";
-import { rowClass } from "./EventList";
-import { CheckIcon, FlagIcon, TypeTile } from "./icons";
+import { EventRow } from "./EventRow";
+import { CheckIcon, FlagIcon } from "./icons";
 import { StatusBar } from "./StatusBar";
 
 type Category =
@@ -160,36 +160,25 @@ export function FlaggedView(props: {
             </h2>
             <ul className="rows">
               {group.items.map((row, i) => {
-                const sev = severityOf(row.event.flag ?? "", row.event.summary);
                 const isOpen = bucket === "open";
                 return (
-                  <li key={row.event.id ?? i} className="row-line">
-                    <button
-                      className={rowClass(row.event, props.selectedId)}
-                      onClick={() => props.onOpenEvent(row.event, !isOpen)}
-                    >
-                      <TypeTile kind={row.event.kind} toolName={row.event.tool_name} flagged />
-                      <span className="row-main">
-                        <span className="row-title">
-                          {row.event.tool_name ?? row.event.kind}
-                          <span className={`flag-chip sev-${sev}`}>{row.event.flag}</span>
-                        </span>
-                        <span className="row-sub">{row.event.summary}</span>
-                      </span>
-                      <span className="row-meta">
-                        {projectName(row.event.cwd)} · {agentLabel(row.event.agent)} ·{" "}
-                        {timeOf(row.event.ts)}
-                      </span>
-                    </button>
-                    <button
-                      className={isOpen ? "row-action-btn ack" : "row-action-btn"}
-                      title={isOpen ? "Acknowledge" : "Reopen"}
-                      aria-label={isOpen ? "Acknowledge" : "Reopen"}
-                      onClick={() => setAck(row.event, isOpen)}
-                    >
-                      <CheckIcon size={14} />
-                    </button>
-                  </li>
+                  <EventRow
+                    key={row.event.id ?? i}
+                    event={row.event}
+                    selected={row.event.id !== undefined && row.event.id === props.selectedId}
+                    showProject
+                    onOpen={(e) => props.onOpenEvent(e, !isOpen)}
+                    action={
+                      <button
+                        className={isOpen ? "row-action-btn ack" : "row-action-btn"}
+                        title={isOpen ? "Acknowledge" : "Reopen"}
+                        aria-label={isOpen ? "Acknowledge" : "Reopen"}
+                        onClick={() => setAck(row.event, isOpen)}
+                      >
+                        <CheckIcon size={14} />
+                      </button>
+                    }
+                  />
                 );
               })}
             </ul>

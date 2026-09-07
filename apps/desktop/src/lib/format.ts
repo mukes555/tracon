@@ -70,6 +70,20 @@ export function agentCounts(items: { agent: string }[]): [string, number][] {
 
 const FILE_TOOLS = new Set(["Edit", "Write", "MultiEdit", "NotebookEdit", "Read"]);
 
+/** Plain words for what an event is, for row sublines. */
+export function kindLabel(event: AgentEvent): string {
+  if (event.kind === "prompt") return "Prompt";
+  if (event.kind === "package_install") return `${event.tool_name ?? "package"} install`;
+  if (event.kind === "tool_result") return "Result";
+  if (event.kind === "session_start") return "Session started";
+  if (event.kind === "session_end") return "Session ended";
+  const tool = event.tool_name ?? "";
+  if (tool === "Bash" || tool === "shell") return "Command";
+  if (tool === "Read") return "File read";
+  if (FILE_TOOLS.has(tool)) return "File edit";
+  return tool || event.kind;
+}
+
 export function matchesKindFilter(event: AgentEvent, filter: KindFilter): boolean {
   switch (filter) {
     case "all":
