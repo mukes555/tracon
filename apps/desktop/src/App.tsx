@@ -95,7 +95,13 @@ function App() {
   const openSessionThread = useCallback((s: LiveSession) => {
     setThreadFor({ sessionId: s.session_id, agent: s.agent, title: projectName(s.cwd) });
   }, []);
-  const goSettings = useCallback(() => setView("settings"), []);
+  // Switching views also clears the inspector, so it never shows an event
+  // from a list that is no longer on screen.
+  const navigate = useCallback((v: View) => {
+    setView(v);
+    setDetail(null);
+  }, []);
+  const goSettings = useCallback(() => navigate("settings"), [navigate]);
   const flagsChanged = useCallback(async () => {
     try {
       setStats(await api.stats());
@@ -278,7 +284,7 @@ function App() {
 
       const viewNumber = Number(e.key);
       if (viewNumber >= 1 && viewNumber <= VIEW_KEYS.length) {
-        setView(VIEW_KEYS[viewNumber - 1]);
+        navigate(VIEW_KEYS[viewNumber - 1]);
         return;
       }
       if (e.key === "ArrowDown" || e.key === "j") {
@@ -295,7 +301,7 @@ function App() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [paletteOpen, threadFor, moveSelection, detail, ackQuick]);
+  }, [paletteOpen, threadFor, moveSelection, detail, ackQuick, navigate]);
 
   const readSelectedSession = useCallback(
     (s: SessionSummary) => setThreadFor({ sessionId: s.session_id, agent: s.agent, title: projectName(s.cwd) }),
@@ -307,7 +313,7 @@ function App() {
       {paletteOpen && (
         <CommandPalette
           sessions={sessions}
-          onNavigate={setView}
+          onNavigate={navigate}
           onOpenSession={openSessionTimeline}
           onOpenEvent={openDetail}
           onClose={() => setPaletteOpen(false)}
@@ -350,14 +356,14 @@ function App() {
           onClose={closeThread}
         />
       )}
-      <NavRail view={view} stats={stats} liveCount={live.length} onNavigate={setView} />
+      <NavRail view={view} stats={stats} liveCount={live.length} onNavigate={navigate} />
 
       <div className="stage">
       <TopBar
         advanced={advanced}
         onAdvanced={setAdvanced}
         onOpenPalette={() => setPaletteOpen(true)}
-        onNavigate={setView}
+        onNavigate={navigate}
       />
 
       {view === "live" && (
@@ -380,7 +386,7 @@ function App() {
           recentPackages={packages}
           liveSessions={live}
           advanced={advanced}
-          onNavigate={setView}
+          onNavigate={navigate}
           onOpenEvent={openDetail}
           onAck={ackQuick}
           onOpenSession={openSessionTimeline}
@@ -477,7 +483,7 @@ function App() {
             liveCount: live.length,
             updatedAt,
             onOpenEvent: openDetail,
-            onNavigate: setView,
+            onNavigate: navigate,
             onReadSession: readSelectedSession,
             onExportSession: exportSelected,
           }}
