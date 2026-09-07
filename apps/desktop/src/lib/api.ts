@@ -8,7 +8,7 @@ export const api = {
   sessionEvents: (sessionId: string) => invoke<AgentEvent[]>("session_events", { sessionId }),
   packageEvents: () => invoke<AgentEvent[]>("package_events"),
   flaggedEvents: (acked = false) => invoke<AgentEvent[]>("flagged_events", { acked }),
-  ackEvent: (id: number, acked: boolean) => invoke("ack_event", { id, acked }),
+  ackEvents: (ids: number[], acked: boolean) => invoke("ack_events", { ids, acked }),
   liveSessions: () => invoke<LiveSession[]>("live_sessions"),
   sessionTail: (sessionId: string) => invoke<AgentEvent[]>("session_tail", { sessionId }),
   searchEvents: (query: string) => invoke<AgentEvent[]>("search_events", { query }),

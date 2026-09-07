@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { api } from "../lib/api";
-import { flagWhy } from "../lib/flags";
+import { flagWhy, severityOf } from "../lib/flags";
 import type { AgentEvent } from "../lib/types";
-import { agentLabel, kindLabel, projectName, severityOf, timeOf } from "../lib/format";
+import { agentLabel, kindLabel, projectName, timeOf } from "../lib/format";
 import { ChevronIcon, TypeTile } from "./icons";
 
 export type EventInspectorProps = {
@@ -24,14 +24,28 @@ export function EventInspector(props: EventInspectorProps) {
   const e = props.event;
   const [payload, setPayload] = useState<unknown>(undefined);
 
+  // Stepping quickly through rows fires one fetch per step; a slow reply
+  // for an earlier row must not overwrite the current one.
   useEffect(() => {
     setPayload(undefined);
     if (e.id === undefined) return;
+    let stale = false;
     api
       .eventPayload(e.id)
-      .then(setPayload)
-      .catch(() => setPayload(null));
+      .then((p) => {
+        if (!stale) setPayload(p);
+      })
+      .catch(() => {
+        if (!stale) setPayload(null);
+      });
+    return () => {
+      stale = true;
+    };
   }, [e.id]);
+  const payloadText = useMemo(
+    () => (payload === undefined ? "loading..." : JSON.stringify(payload, null, 2)),
+    [payload],
+  );
 
   const pos = props.position;
   const hasPrev = pos !== null && pos.index > 0;
@@ -112,22 +126,15 @@ export function EventInspector(props: EventInspectorProps) {
 
       <details className="insp-raw" open={props.advanced}>
         <summary>Raw payload</summary>
-        <pre>{payload === undefined ? "loading..." : JSON.stringify(payload, null, 2)}</pre>
+        <pre>{payloadText}</pre>
       </details>
     </>
   );
 }
 
 /// Narrow windows: the same inspector as a slide-over with a backdrop.
+/// Escape is handled once, app-wide.
 export function DetailPanel(props: EventInspectorProps) {
-  useEffect(() => {
-    const onKey = (ev: KeyboardEvent) => {
-      if (ev.key === "Escape") props.onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [props.onClose]);
-
   return (
     <div className="drawer-backdrop" onClick={props.onClose}>
       <aside className="drawer" role="dialog" aria-label="Event detail" onClick={(ev) => ev.stopPropagation()}>

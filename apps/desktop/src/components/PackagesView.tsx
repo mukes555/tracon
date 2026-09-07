@@ -1,10 +1,10 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { AgentEvent } from "../lib/types";
-// Rows open the app-wide slide-over (DetailPanel); payload fetching lives there.
 import { agentCounts, groupByDay, projectName } from "../lib/format";
 import { type Family, packageParts } from "../lib/packages";
 import { AgentChips } from "./AgentChips";
 import { EventRow } from "./EventRow";
+import { GroupHead } from "./GroupHead";
 import { BoxIcon } from "./icons";
 import { StatusBar } from "./StatusBar";
 
@@ -24,6 +24,7 @@ export function PackagesView(props: {
   selectedId?: number;
   onGoSettings: () => void;
   onOpenEvent: (event: AgentEvent) => void;
+  onVisibleRows: (events: AgentEvent[]) => void;
 }) {
   const [family, setFamily] = useState<Family | "all">("all");
   const [agent, setAgent] = useState("all");
@@ -41,20 +42,30 @@ export function PackagesView(props: {
     return counts;
   }, [rows]);
 
-  const allFiltered = rows.filter((row) => {
-    if (agent !== "all" && row.event.agent !== agent) return false;
-    if (family !== "all" && row.family !== family) return false;
-    if (!query) return true;
-    const q = query.toLowerCase();
-    return (
-      (row.event.summary ?? "").toLowerCase().includes(q) ||
-      row.names.some((n) => n.toLowerCase().includes(q)) ||
-      projectName(row.event.cwd).toLowerCase().includes(q)
-    );
-  });
+  const allFiltered = useMemo(
+    () =>
+      rows.filter((row) => {
+        if (agent !== "all" && row.event.agent !== agent) return false;
+        if (family !== "all" && row.family !== family) return false;
+        if (!query) return true;
+        const q = query.toLowerCase();
+        return (
+          (row.event.summary ?? "").toLowerCase().includes(q) ||
+          row.names.some((n) => n.toLowerCase().includes(q)) ||
+          projectName(row.event.cwd).toLowerCase().includes(q)
+        );
+      }),
+    [rows, agent, family, query],
+  );
   // Rendering hundreds of rows at once is what makes the view feel heavy.
-  const filtered = allFiltered.slice(0, limit);
+  const filtered = useMemo(() => allFiltered.slice(0, limit), [allFiltered, limit]);
   const hidden = allFiltered.length - filtered.length;
+  const visibleEvents = useMemo(() => filtered.map((row) => row.event), [filtered]);
+  const { onVisibleRows } = props;
+  useEffect(() => {
+    onVisibleRows(visibleEvents);
+    return () => onVisibleRows([]);
+  }, [visibleEvents, onVisibleRows]);
 
   return (
     <main className="view">
@@ -111,11 +122,7 @@ export function PackagesView(props: {
       ) : (
         groupByDay(filtered, (row) => row.event.ts).map((group) => (
           <section key={group.label} className="group">
-            <h2 className="group-head">
-              <span className="group-bar" />
-              {group.label}
-              <span className="group-count">{group.items.length}</span>
-            </h2>
+            <GroupHead label={group.label} count={group.items.length} />
             <ul className="rows">
               {group.items.map((row, i) => (
                 <EventRow

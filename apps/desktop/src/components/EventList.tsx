@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { AgentEvent } from "../lib/types";
 import { EventRow } from "./EventRow";
 
@@ -12,12 +12,19 @@ export function EventList(props: {
   advanced: boolean;
   selectedId?: number;
   onOpen: (event: AgentEvent) => void;
+  /// Called with the rows actually rendered, so keyboard stepping stays on screen.
+  onVisibleRows: (events: AgentEvent[]) => void;
 }) {
   const [limit, setLimit] = useState(INITIAL_ROWS);
 
   // Events arrive oldest-first, so the recent tail is the end of the list.
-  const shown = props.events.slice(-limit);
+  const shown = useMemo(() => props.events.slice(-limit), [props.events, limit]);
   const hidden = props.events.length - shown.length;
+  const { onVisibleRows } = props;
+  useEffect(() => {
+    onVisibleRows(shown);
+    return () => onVisibleRows([]);
+  }, [shown, onVisibleRows]);
 
   return (
     <ul className="rows">

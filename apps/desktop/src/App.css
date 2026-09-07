@@ -529,8 +529,7 @@ code {
 
 
 
-/* Today's numbers as one quiet line of pills. The docked inspector shows
-   the same numbers on wide windows, so the strip steps aside there. */
+/* Today's numbers as one quiet line of pills. */
 .today-strip {
   display: flex;
   flex-wrap: wrap;
@@ -567,12 +566,6 @@ code {
 
 .stat-pill.tone-bad b {
   color: var(--bad);
-}
-
-@media (min-width: 1280px) {
-  .today-strip {
-    display: none;
-  }
 }
 
 .bars {
@@ -2551,18 +2544,6 @@ code {
   border-left: 1px solid var(--line-soft);
 }
 
-.inspector-empty {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  text-align: center;
-  color: var(--ink-2);
-  font-size: 13px;
-  padding: 0 12px;
-}
 
 .inspector-mascot {
   width: 120px;

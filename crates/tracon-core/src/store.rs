@@ -343,13 +343,18 @@ impl Store {
         Ok(rows.collect::<std::result::Result<Vec<_>, _>>()?)
     }
 
-    /// Mark a flagged event reviewed (or reopen it).
-    pub fn set_ack(&self, id: i64, acked: bool) -> Result<()> {
-        let conn = self.conn.lock().expect("store mutex poisoned");
-        conn.execute(
-            "UPDATE events SET ack = ?2 WHERE id = ?1",
-            params![id, acked as i64],
-        )?;
+    /// Mark flagged events reviewed (or reopen them) in one transaction, so
+    /// "acknowledge all" costs one commit instead of one per row.
+    pub fn set_ack(&self, ids: &[i64], acked: bool) -> Result<()> {
+        let mut conn = self.conn.lock().expect("store mutex poisoned");
+        let tx = conn.transaction()?;
+        {
+            let mut stmt = tx.prepare("UPDATE events SET ack = ?2 WHERE id = ?1")?;
+            for id in ids {
+                stmt.execute(params![id, acked as i64])?;
+            }
+        }
+        tx.commit()?;
         Ok(())
     }
 

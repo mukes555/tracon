@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { AgentEvent, CaptureStatus, DayCount, LiveSession, Stats, View } from "../lib/types";
 import { agentLabel, projectName, relTime } from "../lib/format";
+import { CAPTURE_SOURCES, sourceEventCount } from "../lib/captureSources";
 import { EventRow } from "./EventRow";
 import { CheckIcon } from "./icons";
 
@@ -191,66 +192,11 @@ function fillMissingDays(days: DayCount[], count: number): DayCount[] {
   return out;
 }
 
-const CURSOR_HOOK_CMD =
-  "sh -c 'cat | curl -s -m 5 -X POST -H \"content-type: application/json\" --data-binary @- http://localhost:48620/ingest -o /dev/null; exit 0'";
-
-const SETUP_SOURCES: {
-  key: string;
-  label: string;
-  agent: string;
-  source: string;
-  auto?: string;
-  how?: string;
-  snippet?: string;
-}[] = [
-  {
-    key: "claude-hooks",
-    label: "Claude Code hooks",
-    agent: "claude-code",
-    source: "hook",
-    how: "Real-time capture. Run Claude Code with the Tracon plugin:",
-    snippet: "claude --plugin-dir <tracon-repo>/integrations/claude-plugin",
-  },
-  {
-    key: "claude-tail",
-    label: "Claude Code transcripts",
-    agent: "claude-code",
-    source: "log_tail",
-    auto: "automatic: read-only tailing of ~/.claude/projects",
-  },
-  {
-    key: "codex",
-    label: "Codex rollouts",
-    agent: "codex",
-    source: "log_tail",
-    auto: "automatic when Codex CLI is installed (~/.codex/sessions)",
-  },
-  {
-    key: "cursor",
-    label: "Cursor hooks",
-    agent: "cursor",
-    source: "hook",
-    how: "Merge this hook into ~/.cursor/hooks.json (events: beforeShellExecution, afterFileEdit, beforeSubmitPrompt...), then restart Cursor:",
-    snippet: `{ "version": 1, "hooks": { "beforeShellExecution": [{ "command": "${CURSOR_HOOK_CMD}" }] } }`,
-  },
-  {
-    key: "gemini",
-    label: "Gemini hooks",
-    agent: "gemini",
-    source: "hook",
-    how: "Add BeforeTool/AfterTool command hooks in ~/.gemini/settings.json posting to the /ingest/gemini endpoint. Full snippet: integrations/gemini-hooks/README.md",
-    snippet:
-      "http://localhost:48620/ingest/gemini",
-  },
-];
-
 function CaptureCard(props: { capture: CaptureStatus | null }) {
   const [openKey, setOpenKey] = useState<string | null>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   if (!props.capture) return null;
-  const { counts } = props.capture;
-  const countOf = (agent: string, source: string) =>
-    counts.find((c) => c.agent === agent && c.source === source)?.count ?? 0;
+  const capture = props.capture;
 
   const copy = async (key: string, text: string) => {
     try {
@@ -266,8 +212,9 @@ function CaptureCard(props: { capture: CaptureStatus | null }) {
     <section className="card">
       <h3>Capture sources</h3>
       <ul className="setup-list">
-        {SETUP_SOURCES.map((s) => {
-          const live = countOf(s.agent, s.source) > 0;
+        {CAPTURE_SOURCES.map((s) => {
+          const count = sourceEventCount(capture, s);
+          const live = count > 0;
           const expandable = !live && !s.auto;
           return (
             <li key={s.key}>
@@ -280,7 +227,7 @@ function CaptureCard(props: { capture: CaptureStatus | null }) {
                 <span className="capture-label">{s.label}</span>
                 <span className="capture-detail">
                   {live
-                    ? `live · ${countOf(s.agent, s.source)} events`
+                    ? `live · ${count} events`
                     : (s.auto ?? "not connected · click to set up")}
                 </span>
               </button>

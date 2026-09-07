@@ -1,4 +1,5 @@
 // Minimal 16px stroke icons, currentColor so they follow the theme.
+import { FILE_TOOLS } from "../lib/format";
 type IconProps = { size?: number };
 
 function Svg(props: IconProps & { children: React.ReactNode }) {
@@ -110,9 +111,7 @@ export function kindIcon(kind: string, toolName: string | null) {
   if (kind === "prompt") return <ChatIcon />;
   if (kind === "tool_call" || kind === "tool_result") {
     if (toolName === "Bash" || toolName === "shell") return <TerminalIcon />;
-    if (["Edit", "Write", "MultiEdit", "NotebookEdit", "Read"].includes(toolName ?? "")) {
-      return <FileIcon />;
-    }
+    if (FILE_TOOLS.has(toolName ?? "")) return <FileIcon />;
     return <TerminalIcon />;
   }
   return <DotIcon />;
@@ -132,7 +131,7 @@ function toneFor(kind: string, toolName: string | null): string {
   const isTool = kind === "tool_call" || kind === "tool_result";
   if (!isTool) return "gray";
   if (toolName === "Bash" || toolName === "shell") return "green";
-  if (["Edit", "Write", "MultiEdit", "NotebookEdit", "Read"].includes(toolName ?? "")) return "blue";
+  if (FILE_TOOLS.has(toolName ?? "")) return "blue";
   return "green";
 }
 

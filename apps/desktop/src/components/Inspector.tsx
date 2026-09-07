@@ -1,4 +1,5 @@
 import type { AgentEvent, CaptureStatus, SessionSummary, Stats, View } from "../lib/types";
+import { CAPTURE_SOURCES, sourceEventCount } from "../lib/captureSources";
 import { agentLabel, durationLabel, projectName, relTime } from "../lib/format";
 import { EventInspector, type EventInspectorProps } from "./EventInspector";
 
@@ -24,13 +25,13 @@ export function InspectorPane(
   props: Omit<EventInspectorProps, "event"> & { event: AgentEvent | null; context: Context },
 ) {
   const { context } = props;
-  const sessionOpen = context.view === "timeline" && context.session;
+  const sessionOpen = context.view === "timeline" && context.session !== null;
   return (
     <aside className="inspector" aria-label="Inspector">
       {props.event ? (
         <EventInspector {...props} event={props.event} />
-      ) : sessionOpen ? (
-        <SessionCard {...context} session={context.session as SessionSummary} />
+      ) : sessionOpen && context.session ? (
+        <SessionCard {...context} session={context.session} />
       ) : (
         <TodayCard {...context} />
       )}
@@ -76,7 +77,7 @@ function SessionCard(props: Context & { session: SessionSummary }) {
           className="insp-note"
           title="Hooks were off for part of this session, or Tracon was not running. Those tool calls were recovered from the transcript."
         >
-          {s.tail_tool_count} tool calls recovered from the transcript
+          {s.tail_tool_count} tool calls recovered from the transcript (hooks were off)
         </p>
       )}
 
@@ -110,19 +111,9 @@ function SessionCard(props: Context & { session: SessionSummary }) {
   );
 }
 
-const SOURCES: { label: string; agent: string; source: string }[] = [
-  { label: "Claude hooks", agent: "claude-code", source: "hook" },
-  { label: "Claude transcripts", agent: "claude-code", source: "log_tail" },
-  { label: "Codex", agent: "codex", source: "log_tail" },
-  { label: "Cursor", agent: "cursor", source: "hook" },
-  { label: "Gemini", agent: "gemini", source: "hook" },
-];
-
 function TodayCard(props: Context) {
   const st = props.stats;
-  const counts = props.capture?.counts ?? [];
-  const isLive = (agent: string, source: string) =>
-    counts.some((c) => c.agent === agent && c.source === source && c.count > 0);
+  const n = (value: number | undefined) => value?.toLocaleString() ?? "-";
   return (
     <>
       <img className="inspector-mascot" src="/mascot/inspector.png" alt="" />
@@ -130,15 +121,15 @@ function TodayCard(props: Context) {
         <h3>Today</h3>
         <dl className="insp-stats">
           <button onClick={() => props.onNavigate("timeline")}>
-            <dd>{st?.sessions_today ?? "-"}</dd>
+            <dd>{n(st?.sessions_today)}</dd>
             <dt>sessions</dt>
           </button>
           <button onClick={() => props.onNavigate("timeline")}>
-            <dd>{st?.commands_today ?? "-"}</dd>
+            <dd>{n(st?.commands_today)}</dd>
             <dt>commands</dt>
           </button>
           <button onClick={() => props.onNavigate("packages")}>
-            <dd>{st?.packages_today ?? "-"}</dd>
+            <dd>{n(st?.packages_today)}</dd>
             <dt>installs</dt>
           </button>
         </dl>
@@ -149,11 +140,11 @@ function TodayCard(props: Context) {
           </li>
           <li className={st && st.flagged_count > 0 ? "bad" : ""}>
             <span>Open flags</span>
-            <b>{st?.flagged_count ?? "-"}</b>
+            <b>{n(st?.flagged_count)}</b>
           </li>
           <li>
             <span>Acknowledged</span>
-            <b>{st?.acked_count ?? "-"}</b>
+            <b>{n(st?.acked_count)}</b>
           </li>
         </ul>
       </section>
@@ -162,14 +153,17 @@ function TodayCard(props: Context) {
         <section className="insp-section">
           <h3>Capture</h3>
           <ul className="insp-kv">
-            {SOURCES.map((s) => (
-              <li key={s.label}>
-                <span>
-                  <span className={isLive(s.agent, s.source) ? "dot ok" : "dot"} /> {s.label}
-                </span>
-                <b className="muted">{isLive(s.agent, s.source) ? "live" : "off"}</b>
-              </li>
-            ))}
+            {CAPTURE_SOURCES.map((s) => {
+              const live = sourceEventCount(props.capture, s) > 0;
+              return (
+                <li key={s.key}>
+                  <span>
+                    <span className={live ? "dot ok" : "dot"} /> {s.label}
+                  </span>
+                  <b className="muted">{live ? "live" : "off"}</b>
+                </li>
+              );
+            })}
           </ul>
           <button className="linkish" onClick={() => props.onNavigate("overview")}>
             set up capture

@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import type { AgentEvent } from "../lib/types";
-import { agentLabel, kindLabel, projectName, severityOf, timeOf } from "../lib/format";
+import { severityOf } from "../lib/flags";
+import { agentLabel, kindLabel, projectName, timeOf } from "../lib/format";
 import { packageParts } from "../lib/packages";
 import { InfoIcon, TypeTile } from "./icons";
 

@@ -1,20 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../lib/api";
 import type { AgentEvent } from "../lib/types";
-import { agentCounts, projectName, severityOf, type Severity } from "../lib/format";
+import { agentCounts, projectName } from "../lib/format";
+import { type Category, categoryOf, type Severity, severityOf } from "../lib/flags";
 import { AgentChips } from "./AgentChips";
 import { EventRow } from "./EventRow";
+import { GroupHead } from "./GroupHead";
 import { CheckIcon, FlagIcon } from "./icons";
 import { KeyHints, StatusBar } from "./StatusBar";
-
-type Category =
-  | "deletes"
-  | "pipe"
-  | "credentials"
-  | "force-push"
-  | "bypass"
-  | "packages"
-  | "other";
 
 const CATEGORY_LABELS: { key: Category | "all"; label: string }[] = [
   { key: "all", label: "All" },
@@ -27,6 +20,18 @@ const CATEGORY_LABELS: { key: Category | "all"; label: string }[] = [
   { key: "other", label: "Other" },
 ];
 
+// Triage order: what can leak or destroy first, then the rest.
+const SEVERITY_LABELS: { severity: Severity; label: string }[] = [
+  { severity: "critical", label: "Critical" },
+  { severity: "warning", label: "Warning" },
+  { severity: "notice", label: "Notice" },
+];
+
+// Rendering hundreds of rows at once is what makes the view feel heavy.
+const INITIAL_ROWS = 120;
+
+type Row = { event: AgentEvent; category: Category; severity: Severity };
+
 export function FlaggedView(props: {
   flagged: AgentEvent[];
   ackedCount: number;
@@ -34,22 +39,32 @@ export function FlaggedView(props: {
   onAck: (event: AgentEvent, acked: boolean) => Promise<void>;
   onAckMany: (events: AgentEvent[], acked: boolean) => Promise<void>;
   onOpenEvent: (event: AgentEvent, acked?: boolean) => void;
+  /// The rows on screen in display order, so keyboard stepping matches.
+  onVisibleRows: (events: AgentEvent[], acked: boolean) => void;
 }) {
   const [bucket, setBucket] = useState<"open" | "acked">("open");
   const [ackedList, setAckedList] = useState<AgentEvent[]>([]);
   const [category, setCategory] = useState<Category | "all">("all");
   const [agent, setAgent] = useState("all");
   const [query, setQuery] = useState("");
-  const [limit, setLimit] = useState(120);
+  const [limit, setLimit] = useState(INITIAL_ROWS);
+  const showingAcked = bucket === "acked";
 
+  // Any change to the open list (ack, reopen, undo) can change the acked
+  // list too, so it refetches on both counters.
   useEffect(() => {
-    if (bucket !== "acked") return;
+    if (!showingAcked) return;
     api.flaggedEvents(true).then(setAckedList).catch(() => {});
-  }, [bucket, props.ackedCount]);
+  }, [showingAcked, props.ackedCount, props.flagged]);
 
-  const source = bucket === "open" ? props.flagged : ackedList;
-  const rows = useMemo(
-    () => source.map((event) => ({ event, category: categoryOf(event.flag ?? "") })),
+  const source = showingAcked ? ackedList : props.flagged;
+  const rows = useMemo<Row[]>(
+    () =>
+      source.map((event) => ({
+        event,
+        category: categoryOf(event.flag ?? ""),
+        severity: severityOf(event.flag ?? "", event.summary),
+      })),
     [source],
   );
 
@@ -59,27 +74,52 @@ export function FlaggedView(props: {
     return map;
   }, [rows]);
 
-  const allFiltered = rows.filter((row) => {
-    if (agent !== "all" && row.event.agent !== agent) return false;
-    if (category !== "all" && row.category !== category) return false;
-    if (!query) return true;
-    const q = query.toLowerCase();
-    return (
-      (row.event.summary ?? "").toLowerCase().includes(q) ||
-      (row.event.flag ?? "").toLowerCase().includes(q) ||
-      projectName(row.event.cwd).toLowerCase().includes(q)
-    );
-  });
-  // Rendering hundreds of rows at once is what makes the view feel heavy.
-  const filtered = allFiltered.slice(0, limit);
-  const hidden = allFiltered.length - filtered.length;
+  const filtered = useMemo(
+    () =>
+      rows.filter((row) => {
+        if (agent !== "all" && row.event.agent !== agent) return false;
+        if (category !== "all" && row.category !== category) return false;
+        if (!query) return true;
+        const q = query.toLowerCase();
+        return (
+          (row.event.summary ?? "").toLowerCase().includes(q) ||
+          (row.event.flag ?? "").toLowerCase().includes(q) ||
+          projectName(row.event.cwd).toLowerCase().includes(q)
+        );
+      }),
+    [rows, agent, category, query],
+  );
 
-  const setAck = async (event: AgentEvent, acked: boolean) => {
-    await props.onAck(event, acked);
-    if (bucket === "acked") {
-      setAckedList((list) => list.filter((e) => e.id !== event.id));
-    }
-  };
+  // Groups hold every matching row (so "acknowledge all" means all); only
+  // the first `limit` rows across the groups are rendered.
+  const groups = useMemo(
+    () =>
+      SEVERITY_LABELS.map((tier) => ({
+        ...tier,
+        items: filtered.filter((row) => row.severity === tier.severity),
+      })).filter((group) => group.items.length > 0),
+    [filtered],
+  );
+  const shownGroups = useMemo(() => {
+    let budget = limit;
+    return groups.map((group) => {
+      const shown = group.items.slice(0, Math.max(0, budget));
+      budget -= shown.length;
+      return { ...group, shown };
+    });
+  }, [groups, limit]);
+  const shownCount = shownGroups.reduce((n, g) => n + g.shown.length, 0);
+  const hidden = filtered.length - shownCount;
+
+  const visibleEvents = useMemo(
+    () => shownGroups.flatMap((g) => g.shown.map((row) => row.event)),
+    [shownGroups],
+  );
+  const { onVisibleRows } = props;
+  useEffect(() => {
+    onVisibleRows(visibleEvents, showingAcked);
+    return () => onVisibleRows([], false);
+  }, [visibleEvents, showingAcked, onVisibleRows]);
 
   return (
     <main className="view">
@@ -94,13 +134,13 @@ export function FlaggedView(props: {
       <div className="filterbar">
         <div className="seg">
           <button
-            className={bucket === "open" ? "seg-item active" : "seg-item"}
+            className={showingAcked ? "seg-item" : "seg-item active"}
             onClick={() => setBucket("open")}
           >
             Open {props.flagged.length}
           </button>
           <button
-            className={bucket === "acked" ? "seg-item active" : "seg-item"}
+            className={showingAcked ? "seg-item active" : "seg-item"}
             onClick={() => setBucket("acked")}
           >
             Acknowledged {props.ackedCount}
@@ -134,13 +174,13 @@ export function FlaggedView(props: {
 
       {filtered.length === 0 ? (
         <div className="pkg-empty">
-          {bucket === "open" && rows.length === 0 ? (
+          {!showingAcked && rows.length === 0 ? (
             <img className="mascot" src="/mascot/inbox-zero.png" alt="" />
           ) : (
             <FlagIcon size={34} />
           )}
           <p>
-            {bucket === "acked"
+            {showingAcked
               ? "Nothing acknowledged yet."
               : rows.length === 0
                 ? "Inbox zero. Quiet skies."
@@ -148,44 +188,43 @@ export function FlaggedView(props: {
           </p>
         </div>
       ) : (
-        groupBySeverity(filtered).map((group) => (
+        shownGroups.map((group) => (
           <section key={group.severity} className="group">
-            <h2 className={`group-head sev-${group.severity}`}>
-              <span className="group-bar" />
-              {group.label}
-              <span className="group-count">{group.items.length}</span>
-              {bucket === "open" && (
-                <button
-                  className="linkish group-action"
-                  onClick={() => props.onAckMany(group.items.map((row) => row.event), true)}
-                >
-                  acknowledge all
-                </button>
-              )}
-            </h2>
+            <GroupHead
+              label={group.label}
+              count={group.items.length}
+              tone={group.severity}
+              action={
+                !showingAcked && (
+                  <button
+                    className="linkish group-action"
+                    onClick={() => props.onAckMany(group.items.map((row) => row.event), true)}
+                  >
+                    acknowledge all
+                  </button>
+                )
+              }
+            />
             <ul className="rows">
-              {group.items.map((row, i) => {
-                const isOpen = bucket === "open";
-                return (
-                  <EventRow
-                    key={row.event.id ?? i}
-                    event={row.event}
-                    selected={row.event.id !== undefined && row.event.id === props.selectedId}
-                    showProject
-                    onOpen={(e) => props.onOpenEvent(e, !isOpen)}
-                    action={
-                      <button
-                        className={isOpen ? "row-action-btn ack" : "row-action-btn"}
-                        title={isOpen ? "Acknowledge" : "Reopen"}
-                        aria-label={isOpen ? "Acknowledge" : "Reopen"}
-                        onClick={() => setAck(row.event, isOpen)}
-                      >
-                        <CheckIcon size={14} />
-                      </button>
-                    }
-                  />
-                );
-              })}
+              {group.shown.map((row, i) => (
+                <EventRow
+                  key={row.event.id ?? i}
+                  event={row.event}
+                  selected={row.event.id !== undefined && row.event.id === props.selectedId}
+                  showProject
+                  onOpen={(e) => props.onOpenEvent(e, showingAcked)}
+                  action={
+                    <button
+                      className={showingAcked ? "row-action-btn" : "row-action-btn ack"}
+                      title={showingAcked ? "Reopen" : "Acknowledge"}
+                      aria-label={showingAcked ? "Reopen" : "Acknowledge"}
+                      onClick={() => props.onAck(row.event, !showingAcked)}
+                    >
+                      <CheckIcon size={14} />
+                    </button>
+                  }
+                />
+              ))}
             </ul>
           </section>
         ))
@@ -198,35 +237,9 @@ export function FlaggedView(props: {
         </div>
       )}
       <StatusBar
-        left={`${filtered.length} of ${allFiltered.length} ${bucket === "open" ? "open" : "acknowledged"} flags shown`}
-        right={<KeyHints ack={bucket === "open"} />}
+        left={`${shownCount} of ${filtered.length} ${showingAcked ? "acknowledged" : "open"} flags shown`}
+        right={<KeyHints ack={!showingAcked} />}
       />
     </main>
   );
-}
-
-type Row = { event: AgentEvent; category: Category };
-
-const SEVERITY_LABELS: { severity: Severity; label: string }[] = [
-  { severity: "critical", label: "Critical" },
-  { severity: "warning", label: "Warning" },
-  { severity: "notice", label: "Notice" },
-];
-
-/// Triage order: what can leak or destroy first, then the rest.
-function groupBySeverity(rows: Row[]): { severity: Severity; label: string; items: Row[] }[] {
-  return SEVERITY_LABELS.map((tier) => ({
-    ...tier,
-    items: rows.filter((row) => severityOf(row.event.flag ?? "", row.event.summary) === tier.severity),
-  })).filter((group) => group.items.length > 0);
-}
-
-function categoryOf(flag: string): Category {
-  if (flag.includes("delete")) return "deletes";
-  if (flag.includes("piped")) return "pipe";
-  if (flag.includes("credential")) return "credentials";
-  if (flag.includes("force push")) return "force-push";
-  if (flag.includes("bypass")) return "bypass";
-  if (flag.includes("vulnerabilit") || flag.includes("published")) return "packages";
-  return "other";
 }

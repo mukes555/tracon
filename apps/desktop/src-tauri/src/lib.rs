@@ -77,9 +77,13 @@ async fn flagged_events(
 }
 
 #[tauri::command]
-async fn ack_event(id: i64, acked: bool, state: tauri::State<'_, AppState>) -> Result<(), String> {
+async fn ack_events(
+    ids: Vec<i64>,
+    acked: bool,
+    state: tauri::State<'_, AppState>,
+) -> Result<(), String> {
     let store = state.store.clone();
-    run_query(move || store.set_ack(id, acked)).await
+    run_query(move || store.set_ack(&ids, acked)).await
 }
 
 #[tauri::command]
@@ -265,7 +269,7 @@ pub fn run() {
             stats,
             package_events,
             flagged_events,
-            ack_event,
+            ack_events,
             live_sessions,
             session_tail,
             search_events,

@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "./App.css";
 import { api } from "./lib/api";
-import { agentLabel, durationLabel, matchesKindFilter, matchesQuery, projectName, relTime } from "./lib/format";
+import { matchesKindFilter, matchesQuery, projectName } from "./lib/format";
+import { useToast } from "./lib/useToast";
 import { applyTheme, normalizeTheme, THEME_KEY } from "./lib/theme";
 import { useMediaQuery } from "./lib/useMediaQuery";
 import type {
@@ -17,17 +18,14 @@ import type {
 import { CommandPalette } from "./components/CommandPalette";
 import { DetailPanel } from "./components/EventInspector";
 import { InspectorPane } from "./components/Inspector";
-import { EventList } from "./components/EventList";
-import { FilterBar } from "./components/FilterBar";
 import { FlaggedView } from "./components/FlaggedView";
 import { LiveView } from "./components/LiveView";
 import { NavRail } from "./components/NavRail";
-import { KeyHints, StatusBar } from "./components/StatusBar";
 import { TopBar } from "./components/TopBar";
 import { OverviewView } from "./components/OverviewView";
 import { PackagesView } from "./components/PackagesView";
-import { SessionList } from "./components/SessionList";
 import { SettingsView } from "./components/SettingsView";
+import { TimelineView } from "./components/TimelineView";
 import { ThreadViewer } from "./components/ThreadViewer";
 
 const POLL_MS = 3000;
@@ -38,7 +36,11 @@ const ADVANCED_KEY = "tracon-advanced";
 // slide-over, so the list stays visible while inspecting.
 const INSPECTOR_QUERY = "(min-width: 1280px)";
 const VIEW_KEYS: View[] = ["overview", "live", "timeline", "packages", "flagged", "settings"];
-const TOAST_MS = 6000;
+
+// The rows the current list actually rendered, in display order. Keyboard
+// stepping and prev/next walk this, never a filtered-out or folded row.
+type Cursor = { events: AgentEvent[]; acked: boolean };
+const NO_CURSOR: Cursor = { events: [], acked: false };
 
 function App() {
   const [view, setView] = useState<View>("overview");
@@ -92,7 +94,7 @@ function App() {
     });
   }, []);
   const closeThread = useCallback(() => setThreadFor(null), []);
-  const openSessionThread = useCallback((s: LiveSession) => {
+  const openSessionThread = useCallback((s: { session_id: string; agent: string; cwd: string | null }) => {
     setThreadFor({ sessionId: s.session_id, agent: s.agent, title: projectName(s.cwd) });
   }, []);
   // Switching views also clears the inspector, so it never shows an event
@@ -122,19 +124,13 @@ function App() {
     setSelected(sessionId);
     setDetail(null);
   }, []);
-  // One toast at a time, with an optional undo; a new one replaces the old.
-  const [toast, setToast] = useState<{ text: string; undo?: () => void } | null>(null);
-  const toastTimer = useRef<number | undefined>(undefined);
-  const showToast = useCallback((text: string, undo?: () => void) => {
-    window.clearTimeout(toastTimer.current);
-    setToast({ text, undo });
-    toastTimer.current = window.setTimeout(() => setToast(null), TOAST_MS);
-  }, []);
+  const { toast, show: showToast, dismiss: dismissToast } = useToast();
 
   const ackMany = useCallback(
     async (targets: AgentEvent[], acked: boolean, withToast = true) => {
       const ids = targets.map((e) => e.id).filter((id): id is number => id !== undefined);
-      await Promise.all(ids.map((id) => api.ackEvent(id, acked).catch(() => {})));
+      if (ids.length === 0) return;
+      await api.ackEvents(ids, acked).catch(() => {});
       flagsChanged();
       if (!withToast) return;
       const what = targets.length === 1 ? (targets[0].summary ?? "1 flag") : `${targets.length} flags`;
@@ -145,13 +141,6 @@ function App() {
   const ackQuick = useCallback(
     (event: AgentEvent, acked = true) => ackMany([event], acked),
     [ackMany],
-  );
-  const ackFromPanel = useCallback(
-    async (event: AgentEvent, acked: boolean) => {
-      setDetail(null);
-      await ackQuick(event, acked);
-    },
-    [ackQuick],
   );
 
 
@@ -242,29 +231,47 @@ function App() {
 
   const selectedSession = sessions.find((s) => s.session_id === selected) ?? null;
 
-  // Prev/next in the inspector walks the list the event was opened from.
-  const detailList = view === "timeline" ? filteredEvents : view === "flagged" ? flagged : view === "packages" ? packages : [];
-  const detailIndex = detail ? detailList.findIndex((e) => e.id === detail.event.id) : -1;
-  const detailPosition = detailIndex >= 0 ? { index: detailIndex, total: detailList.length } : null;
+  const [cursor, setCursor] = useState<Cursor>(NO_CURSOR);
+  const onVisibleRows = useCallback((events: AgentEvent[], acked = false) => {
+    setCursor(events.length === 0 ? NO_CURSOR : { events, acked });
+  }, []);
+  const detailIndex = useMemo(
+    () => (detail ? cursor.events.findIndex((e) => e.id === detail.event.id) : -1),
+    [cursor, detail],
+  );
+  const detailPosition = detailIndex >= 0 ? { index: detailIndex, total: cursor.events.length } : null;
   const stepDetail = useCallback(
     (delta: 1 | -1) => {
-      const next = detailList[detailIndex + delta];
-      if (next) setDetail({ event: next, acked: detail?.acked });
+      const next = cursor.events[detailIndex + delta];
+      if (next) setDetail({ event: next, acked: cursor.acked });
     },
-    [detailList, detailIndex, detail?.acked],
+    [cursor, detailIndex],
   );
-  // Arrow keys walk the current list; with nothing open they start at the
-  // nearest end of it.
+  // Arrow keys walk the rendered rows; with nothing open they start at the
+  // nearest end.
   const moveSelection = useCallback(
     (delta: 1 | -1) => {
-      if (detailList.length === 0) return;
+      const rows = cursor.events;
+      if (rows.length === 0) return;
       if (detailIndex < 0) {
-        setDetail({ event: detailList[delta > 0 ? 0 : detailList.length - 1] });
+        setDetail({ event: rows[delta > 0 ? 0 : rows.length - 1], acked: cursor.acked });
         return;
       }
       stepDetail(delta);
     },
-    [detailList, detailIndex, stepDetail],
+    [cursor, detailIndex, stepDetail],
+  );
+  // Acknowledging from the inspector keeps the triage flowing: the docked
+  // column moves to the next row, the slide-over closes.
+  const ackFromPanel = useCallback(
+    async (event: AgentEvent, acked: boolean) => {
+      const next = cursor.events[detailIndex + 1] ?? cursor.events[detailIndex - 1];
+      if (!wide) setDetail(null);
+      else if (next) setDetail({ event: next, acked: cursor.acked });
+      else setDetail({ event, acked });
+      await ackQuick(event, acked);
+    },
+    [cursor, detailIndex, wide, ackQuick],
   );
 
   useEffect(() => {
@@ -276,6 +283,10 @@ function App() {
       }
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       if (paletteOpen || threadFor) return;
+      if (e.key === "Escape") {
+        setDetail(null);
+        return;
+      }
       const target = e.target as HTMLElement | null;
       const typing =
         target !== null &&
@@ -293,20 +304,13 @@ function App() {
       } else if (e.key === "ArrowUp" || e.key === "k") {
         e.preventDefault();
         moveSelection(-1);
-      } else if (e.key === "Escape") {
-        setDetail(null);
       } else if (e.key === "a" && detail?.event.flag && !detail.acked) {
-        ackQuick(detail.event, true);
+        ackFromPanel(detail.event, true);
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [paletteOpen, threadFor, moveSelection, detail, ackQuick, navigate]);
-
-  const readSelectedSession = useCallback(
-    (s: SessionSummary) => setThreadFor({ sessionId: s.session_id, agent: s.agent, title: projectName(s.cwd) }),
-    [],
-  );
+  }, [paletteOpen, threadFor, moveSelection, detail, ackFromPanel, navigate]);
 
   return (
     <div className="shell">
@@ -339,7 +343,7 @@ function App() {
             <button
               onClick={() => {
                 toast.undo?.();
-                setToast(null);
+                dismissToast();
               }}
             >
               Undo
@@ -394,54 +398,27 @@ function App() {
       )}
 
       {view === "timeline" && (
-        <div className="body">
-          <aside className="sessions">
-            <SessionList sessions={sessions} selected={selected} onSelect={setSelected} />
-          </aside>
-          <main className="timeline">
-            {selectedSession ? (
-              <>
-                <div className="timeline-toolbar">
-                  <SessionHeader
-                    session={selectedSession}
-                    live={live.some((s) => s.session_id === selectedSession.session_id)}
-                    onExport={exportSelected}
-                    onReadThread={() =>
-                      setThreadFor({
-                        sessionId: selectedSession.session_id,
-                        agent: selectedSession.agent,
-                        title: projectName(selectedSession.cwd),
-                      })
-                    }
-                  />
-                  <FilterBar query={query} onQuery={setQuery} kind={kind} onKind={setKind} />
-                  {exportNote && <p className="export-note">{exportNote}</p>}
-                </div>
-                {/* Key by session so the show-more window and expanded row
-                    reset when the user switches sessions. */}
-                <EventList
-                  key={selectedSession.session_id}
-                  events={filteredEvents}
-                  showProject={false}
-                  advanced={advanced}
-                  selectedId={detail?.event.id}
-                  onOpen={openDetail}
-                />
-                <StatusBar
-                  left={`${filteredEvents.length} of ${events.length} events · updated ${updatedAt ? relTime(updatedAt) : "..."}`}
-                  right={<KeyHints ack />}
-                />
-              </>
-            ) : (
-              <div className="pkg-empty">
-                <p>Select a session to see its timeline.</p>
-                <p className="muted">
-                  Every command, file edit, and install, in the order it happened.
-                </p>
-              </div>
-            )}
-          </main>
-        </div>
+        <TimelineView
+          sessions={sessions}
+          selected={selected}
+          session={selectedSession}
+          live={selectedSession !== null && live.some((l) => l.session_id === selectedSession.session_id)}
+          events={events}
+          filteredEvents={filteredEvents}
+          query={query}
+          kind={kind}
+          exportNote={exportNote}
+          updatedAt={updatedAt}
+          advanced={advanced}
+          selectedId={detail?.event.id}
+          onSelect={setSelected}
+          onQuery={setQuery}
+          onKind={setKind}
+          onExport={exportSelected}
+          onReadThread={openSessionThread}
+          onOpen={openDetail}
+          onVisibleRows={onVisibleRows}
+        />
       )}
 
       {view === "packages" && (
@@ -451,6 +428,7 @@ function App() {
           selectedId={detail?.event.id}
           onGoSettings={goSettings}
           onOpenEvent={openDetail}
+          onVisibleRows={onVisibleRows}
         />
       )}
 
@@ -462,6 +440,7 @@ function App() {
           onOpenEvent={openDetail}
           onAck={ackQuick}
           onAckMany={ackMany}
+          onVisibleRows={onVisibleRows}
         />
       )}
 
@@ -484,7 +463,7 @@ function App() {
             updatedAt,
             onOpenEvent: openDetail,
             onNavigate: navigate,
-            onReadSession: readSelectedSession,
+            onReadSession: openSessionThread,
             onExportSession: exportSelected,
           }}
           onClose={closeDetail}
@@ -493,45 +472,6 @@ function App() {
           onOpenSession={openSessionTimeline}
         />
       )}
-    </div>
-  );
-}
-
-function SessionHeader(props: {
-  session: SessionSummary;
-  live: boolean;
-  onExport: () => void;
-  onReadThread: () => void;
-}) {
-  const s = props.session;
-  return (
-    <div className="session-header">
-      <div>
-        <h1 className="session-title">
-          {props.live && <span className="pulse-dot" title="Active in the last 5 minutes" />}
-          {projectName(s.cwd)}
-        </h1>
-        <p className="view-sub">
-          {agentLabel(s.agent)} · {s.event_count} events · {s.command_count} commands ·{" "}
-          {durationLabel(s.started_at, s.last_at)}
-          {s.hook_tool_count > 0 && s.tail_tool_count > 0 && (
-            <span
-              className="gap-chip"
-              title="Hooks were off for part of this session, or Tracon was not running. Those tool calls were recovered from the transcript."
-            >
-              {s.tail_tool_count} recovered from transcript
-            </span>
-          )}
-        </p>
-      </div>
-      <div className="session-actions">
-        <button className="btn-dark" onClick={props.onReadThread}>
-          Conversation
-        </button>
-        <button className="ack-btn" onClick={props.onExport}>
-          Export JSON
-        </button>
-      </div>
     </div>
   );
 }

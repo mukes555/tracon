@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { SessionSummary } from "../lib/types";
 import { agentCounts, agentLabel, groupByDay, projectName, timeOf } from "../lib/format";
 import { AgentChips } from "./AgentChips";
+import { GroupHead } from "./GroupHead";
 
 export function SessionList(props: {
   sessions: SessionSummary[];
@@ -49,11 +50,7 @@ export function SessionList(props: {
       {visible.length === 0 && <p className="muted">No sessions match.</p>}
       {groups.map((group) => (
         <div key={group.label} className="session-group">
-          <h2 className="group-head">
-            <span className="group-bar" />
-            {group.label}
-            <span className="group-count">{group.items.length}</span>
-          </h2>
+          <GroupHead label={group.label} count={group.items.length} />
           <ul>
             {group.items.map((s) => (
               <li key={s.session_id}>

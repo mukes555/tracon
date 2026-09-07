@@ -68,7 +68,7 @@ export function agentCounts(items: { agent: string }[]): [string, number][] {
   return [...counts.entries()].sort((a, b) => b[1] - a[1]);
 }
 
-const FILE_TOOLS = new Set(["Edit", "Write", "MultiEdit", "NotebookEdit", "Read"]);
+export const FILE_TOOLS = new Set(["Edit", "Write", "MultiEdit", "NotebookEdit", "Read"]);
 
 /** Plain words for what an event is, for row sublines. */
 export function kindLabel(event: AgentEvent): string {
@@ -109,30 +109,6 @@ export function matchesQuery(event: AgentEvent, query: string): boolean {
     (event.tool_name ?? "").toLowerCase().includes(q) ||
     (event.flag ?? "").toLowerCase().includes(q)
   );
-}
-
-export type Severity = "critical" | "warning" | "notice";
-
-/** Tiers our own flag strings; summaries sharpen destructive deletes. */
-export function severityOf(flag: string, summary: string | null): Severity {
-  if (
-    flag.includes("credential") ||
-    flag.includes("piped") ||
-    flag.includes("bypass") ||
-    flag.includes("disk") ||
-    flag.includes("vulnerabilit")
-  ) {
-    return "critical";
-  }
-  if (flag.includes("delete")) {
-    const s = summary ?? "";
-    if (s.includes("~") || s.includes("sudo") || / \/(\s|$)/.test(s)) return "critical";
-    return "warning";
-  }
-  if (flag.includes("force push") || flag.includes("world-writable") || flag.includes("published")) {
-    return "warning";
-  }
-  return "notice";
 }
 
 export function durationLabel(start: string, end: string): string {
