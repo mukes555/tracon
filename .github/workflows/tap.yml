@@ -1,0 +1,55 @@
+name: Homebrew tap
+
+# When a release is published (drafts are reviewed by hand first), pin the
+# tap's cask to it with the DMG checksums, so `brew upgrade --cask tracon`
+# sees the new version and Homebrew verifies the download. Needs a
+# HOMEBREW_TAP_TOKEN secret: a fine-grained personal access token with
+# Contents read and write on mukes555/homebrew-tap. Without it the job
+# skips and the cask is updated by hand.
+on:
+  release:
+    types: [published]
+
+jobs:
+  update-tap:
+    runs-on: ubuntu-latest
+    env:
+      HAS_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN != '' }}
+    steps:
+      - name: Skipped
+        if: env.HAS_TAP_TOKEN != 'true'
+        run: echo "HOMEBREW_TAP_TOKEN is not set; update the cask by hand."
+
+      - name: Checkout Tracon (for the cask template)
+        if: env.HAS_TAP_TOKEN == 'true'
+        uses: actions/checkout@v4
+
+      - name: Checkout the tap
+        if: env.HAS_TAP_TOKEN == 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: mukes555/homebrew-tap
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          path: tap
+
+      - name: Render and push the pinned cask
+        if: env.HAS_TAP_TOKEN == 'true'
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+          PRERELEASE: ${{ github.event.release.prerelease }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if [ "$PRERELEASE" = "true" ]; then echo "pre-release: tap not updated"; exit 0; fi
+          VERSION="${TAG#v}"
+          gh release download "$TAG" --repo mukes555/tracon --pattern '*.dmg' --dir dl
+          ARM="$(sha256sum "dl/Tracon_${VERSION}_aarch64.dmg" | cut -d' ' -f1)"
+          INTEL="$(sha256sum "dl/Tracon_${VERSION}_x64.dmg" | cut -d' ' -f1)"
+          sed -e "s/__VERSION__/$VERSION/" -e "s/__SHA256_ARM__/$ARM/" -e "s/__SHA256_INTEL__/$INTEL/" \
+            packaging/homebrew/tracon.rb.tmpl > tap/Casks/tracon.rb
+          cd tap
+          git config user.name "tracon-release"
+          git config user.email "release@tracon.invalid"
+          git add Casks/tracon.rb
+          git commit -m "tracon $VERSION" || { echo "no change"; exit 0; }
+          git push

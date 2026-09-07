@@ -106,7 +106,16 @@ Tracon never modifies agent configuration and never writes to agent directories;
 
 ## Install
 
-Download the latest macOS or Windows installer from [Releases](https://github.com/mukes555/tracon/releases).
+**macOS, with Homebrew:**
+
+```bash
+brew tap mukes555/tap
+brew install --cask tracon
+```
+
+The cask installs the right build for Apple Silicon or Intel and clears the Gatekeeper quarantine, since builds are not yet code signed. Homebrew may ask you to trust the tap once (`brew trust mukes555/tap`). Later, `brew upgrade --cask tracon` picks up new releases.
+
+**Or download** the latest macOS DMG or Windows installer from [Releases](https://github.com/mukes555/tracon/releases). On macOS, right click the app and choose Open the first time; Windows SmartScreen may ask you to confirm once.
 
 Or build from source. Requirements: [Rust](https://rustup.rs), Node 22+, [pnpm](https://pnpm.io), and the [Tauri prerequisites](https://tauri.app/start/prerequisites/) for your platform.
 
