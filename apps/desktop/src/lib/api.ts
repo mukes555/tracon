@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { AgentEvent, CaptureStatus, ChangeToken, DayCount, LiveSession, SessionSummary, Stats, ThreadMessage } from "./types";
+import type { AgentEvent, CaptureStatus, ChangeToken, DayCount, LiveSession, SessionSummary, Stats, ThreadMessage, UpdateStatus } from "./types";
 
 export const api = {
   changeToken: () => invoke<ChangeToken>("change_token"),
@@ -28,4 +28,7 @@ export const api = {
   purgeSession: (sessionId: string) => invoke<number>("purge_session", { sessionId }),
   appVersion: () => invoke<string>("app_version"),
   logPath: () => invoke<string>("log_path"),
+  updateStatus: () => invoke<UpdateStatus>("update_status"),
+  updateCheckNow: () => invoke<UpdateStatus>("update_check_now"),
+  setUpdateCheck: (enabled: boolean) => invoke<void>("set_update_check", { enabled }),
 };

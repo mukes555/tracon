@@ -22,6 +22,7 @@ All notable changes to Tracon. The format follows Keep a Changelog; versions fol
 - Capture paused is visible in the UI, with a Resume button and a Settings switch.
 - Delete everything and delete one session, from Settings and the session inspector.
 - App version and a log file, revealed from Settings.
+- Opt-in update check: a Settings switch and a Check now button; when a newer release exists a banner offers the brew upgrade command or the download page, and the tray shows the version.
 - Frontend tests (Vitest), Linux in CI, dependency audits, a pinned toolchain.
 
 ## 0.3.0 (2026-09-07)

@@ -101,7 +101,7 @@ Hooks authenticate with a per-install token that Tracon writes to `~/.tracon/tok
 
 ## Principles
 
-- **Local-only by default.** Your audit data never leaves your machine. No telemetry. The single exception is opt-in (off by default): package threat intelligence, which sends package names, and nothing else, to osv.dev and registry.npmjs.org.
+- **Local-only by default.** Your audit data never leaves your machine. No telemetry. The only network features are opt-in and off by default: package threat intelligence, which sends package names, and nothing else, to osv.dev and registry.npmjs.org; and a daily version check, which asks GitHub for the latest release number. A manual Check now button in Settings works without turning the daily check on.
 - **Open source, AGPL-3.0.** An auditor you can't audit is spyware. The desktop recorder is and will remain free and AGPL; paid features will only ever be team or server side.
 - **Never in the way.** Capture is passive; a dead or closed Tracon never blocks or slows an agent.
 - **Ground truth over self-reporting.** Agent logs are the start; OS-level evidence is the goal.

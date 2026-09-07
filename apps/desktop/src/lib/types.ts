@@ -68,6 +68,18 @@ export type CaptureCount = {
   last_at: string | null;
 };
 
+/// What the opt-in version check last learned. `available` is true when
+/// `latest` is newer than the running build.
+export type UpdateStatus = {
+  current: string;
+  latest: string | null;
+  url: string | null;
+  checked_at: string | null;
+  enabled: boolean;
+  via_brew: boolean;
+  available: boolean;
+};
+
 export type CaptureStatus = {
   claude_dir_found: boolean;
   codex_dir_found: boolean;

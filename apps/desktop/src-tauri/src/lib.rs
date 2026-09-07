@@ -3,6 +3,7 @@ use std::sync::Arc;
 use tauri::Manager;
 
 mod tray;
+mod updates;
 mod workers;
 use tracon_core::event::AgentEvent;
 use tracon_core::store::{CaptureCount, DayCount, LiveSession, SessionSummary, Stats, Store};
@@ -108,6 +109,36 @@ async fn purge_session(
 #[tauri::command]
 fn app_version(app: tauri::AppHandle) -> String {
     app.package_info().version.to_string()
+}
+
+#[tauri::command]
+async fn update_status(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, AppState>,
+) -> Result<updates::UpdateStatus, String> {
+    let store = state.store.clone();
+    let current = app.package_info().version.to_string();
+    run_query(move || Ok(updates::status(&store, &current))).await
+}
+
+/// A manual check is the user's own action, so it runs even while the
+/// daily check is switched off.
+#[tauri::command]
+async fn update_check_now(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, AppState>,
+) -> Result<updates::UpdateStatus, String> {
+    let current = app.package_info().version.to_string();
+    updates::check_now(&state.store, &current)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn set_update_check(enabled: bool, state: tauri::State<'_, AppState>) -> Result<(), String> {
+    let store = state.store.clone();
+    run_query(move || store.set_setting("update_check", if enabled { "true" } else { "false" }))
+        .await
 }
 
 #[tauri::command]
@@ -357,6 +388,7 @@ pub fn run() {
             workers::spawn_flag_notifier(app.handle().clone(), store.clone());
             tauri::async_runtime::spawn(tracon_ingest::intel::run_worker(store.clone()));
             tauri::async_runtime::spawn(tracon_ingest::retention::run_worker(store.clone()));
+            updates::spawn_update_worker(store.clone(), app.package_info().version.to_string());
             tray::build_tray(app, store)?;
             Ok(())
         })
@@ -393,7 +425,10 @@ pub fn run() {
             purge_all,
             purge_session,
             app_version,
-            log_path
+            log_path,
+            update_status,
+            update_check_now,
+            set_update_check
         ])
         .run(tauri::generate_context!())
         .expect("error while running tracon");

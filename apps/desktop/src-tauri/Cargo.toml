@@ -25,4 +25,5 @@ tracon-core = { path = "../../../crates/tracon-core" }
 tracon-ingest = { path = "../../../crates/tracon-ingest" }
 tauri-plugin-notification = "2"
 tauri-plugin-log = "2"
+reqwest.workspace = true
 log = "0.4"

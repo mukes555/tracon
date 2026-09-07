@@ -211,6 +211,29 @@ code {
   font-weight: 500;
 }
 
+.banner.info {
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  font-weight: 500;
+}
+
+.banner.info code {
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+.banner.info .banner-btn {
+  background: var(--accent-ink);
+}
+
+.update-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 10px;
+}
+
 .banner-btn {
   background: var(--warn);
   color: var(--surface);

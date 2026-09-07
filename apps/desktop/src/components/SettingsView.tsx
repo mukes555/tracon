@@ -5,6 +5,8 @@ import { ingestFailureText } from "../lib/captureSources";
 import { applyTheme, normalizeTheme, THEME_KEY } from "../lib/theme";
 import type { CaptureStatus, ThemeSetting } from "../lib/types";
 import { useTransientNote } from "../lib/useTransientNote";
+import type { UpdateStatus } from "../lib/types";
+import { UpdatesCard } from "./UpdatesCard";
 import { ConfirmButton } from "./ConfirmButton";
 
 const THEMES: { value: ThemeSetting; label: string }[] = [
@@ -19,6 +21,9 @@ export function SettingsView(props: {
   capture: CaptureStatus | null;
   eventCount: number;
   onDeleteAll: () => Promise<void>;
+  update: UpdateStatus | null;
+  onSetUpdateCheck: (enabled: boolean) => Promise<void>;
+  onCheckUpdate: () => Promise<UpdateStatus>;
 }) {
   const [theme, setTheme] = useState<ThemeSetting>("dark");
   const [intel, setIntel] = useState<boolean | null>(null);
@@ -130,6 +135,13 @@ export function SettingsView(props: {
         </p>
         {ingestFailure && <p className="ingest-error">{ingestFailure}</p>}
       </section>
+
+      <UpdatesCard
+        status={props.update}
+        onSetEnabled={props.onSetUpdateCheck}
+        onCheckNow={props.onCheckUpdate}
+        onNote={show}
+      />
 
       <section className="card">
         <h3>Appearance</h3>

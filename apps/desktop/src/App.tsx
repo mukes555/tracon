@@ -4,6 +4,7 @@ import { api } from "./lib/api";
 import { matchesKindFilter, matchesQuery, projectName } from "./lib/format";
 import { useAppData } from "./lib/useAppData";
 import { useToast } from "./lib/useToast";
+import { useUpdateStatus } from "./lib/useUpdateStatus";
 import { useTransientNote } from "./lib/useTransientNote";
 import { applyTheme, normalizeTheme, THEME_KEY } from "./lib/theme";
 import { useMediaQuery } from "./lib/useMediaQuery";
@@ -102,6 +103,7 @@ function App() {
     setDetail(null);
   }, []);
   const { toast, show: showToast, dismiss: dismissToast } = useToast();
+  const update = useUpdateStatus();
 
   const { flagsChanged, refreshNow, setPaused } = data;
   const ackMany = useCallback(
@@ -374,7 +376,12 @@ function App() {
         onOpenPalette={() => setPaletteOpen(true)}
         onNavigate={navigate}
       />
-      <StatusBanners connection={data.connection} paused={data.paused} onResume={resumeCapture} />
+      <StatusBanners
+        connection={data.connection}
+        paused={data.paused}
+        onResume={resumeCapture}
+        update={update.status}
+      />
 
       {view === "live" && (
         <LiveView
@@ -459,6 +466,9 @@ function App() {
           capture={data.capture}
           eventCount={data.stats?.event_count ?? 0}
           onDeleteAll={deleteEverything}
+          update={update.status}
+          onSetUpdateCheck={update.setEnabled}
+          onCheckUpdate={update.checkNow}
         />
       )}
       </div>

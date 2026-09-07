@@ -33,6 +33,15 @@ pub(crate) fn build_tray(app: &tauri::App, store: Arc<Store>) -> tauri::Result<(
                 let _ = menu_store
                     .set_setting("capture_paused", if now_paused { "true" } else { "false" });
             }
+            "update" => {
+                use tauri_plugin_opener::OpenerExt;
+                let url = menu_store
+                    .setting("update_url")
+                    .ok()
+                    .flatten()
+                    .unwrap_or_else(|| "https://github.com/mukes555/tracon/releases/latest".into());
+                let _ = app.opener().open_url(url, None::<&str>);
+            }
             "quit" => app.exit(0),
             _ => {}
         })
@@ -79,5 +88,18 @@ fn tray_menu(app: &tauri::AppHandle, store: &Store) -> tauri::Result<Menu<tauri:
         None::<&str>,
     )?;
     let quit = MenuItem::with_id(app, "quit", "Quit Tracon", true, None::<&str>)?;
-    Menu::with_items(app, &[&summary, &flags, &open, &pause, &quit])
+    let current = app.package_info().version.to_string();
+    let update = crate::updates::status(store, &current);
+    if !update.available {
+        return Menu::with_items(app, &[&summary, &flags, &open, &pause, &quit]);
+    }
+    let latest = update.latest.unwrap_or_default();
+    let update_item = MenuItem::with_id(
+        app,
+        "update",
+        format!("Update available: {latest}"),
+        true,
+        None::<&str>,
+    )?;
+    Menu::with_items(app, &[&summary, &flags, &update_item, &open, &pause, &quit])
 }
