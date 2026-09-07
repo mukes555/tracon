@@ -4,6 +4,8 @@ All notable changes to Tracon. The format follows Keep a Changelog; versions fol
 
 ## Unreleased
 
+## 0.4.0 (2026-09-08)
+
 ### Security
 - The ingest server now requires a per-install token on every POST and checks the Host header, so other local processes and rebound web pages cannot forge or suppress events.
 - Session ids from hooks and transcripts are sanitized before they touch any file path.
@@ -24,6 +26,13 @@ All notable changes to Tracon. The format follows Keep a Changelog; versions fol
 - App version and a log file, revealed from Settings.
 - Opt-in update check: a Settings switch and a Check now button; when a newer release exists a banner offers the brew upgrade command or the download page, and the tray shows the version.
 - Frontend tests (Vitest), Linux in CI, dependency audits, a pinned toolchain.
+
+### Changed
+- One notification engine with a place for every message: results of your actions are toasts at the bottom with a level, conditions that stay true are banners at the top ordered by severity, and a control's own state stays on the control.
+- The right inspector column appears only on the views with a list to inspect, so Overview and Live take the full width and commands in the flag inbox are readable.
+- Settings is grouped rows of label, hint and control with one switch style, replacing seven sparse cards that mixed native checkboxes with three kinds of button.
+- The Settings icon is a cog rather than a circle with spokes, the top bar no longer duplicates the nav's way into Settings, and the Simple and Advanced switch appears only where it changes something.
+- Flagged events in the activity chart have a visible floor and a legend, instead of a hairline that read as an artifact.
 
 ## 0.3.0 (2026-09-07)
 
