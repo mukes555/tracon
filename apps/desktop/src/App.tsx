@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "./App.css";
 import { api } from "./lib/api";
-import { agentLabel, matchesKindFilter, matchesQuery, projectName, relTime } from "./lib/format";
+import { agentLabel, durationLabel, matchesKindFilter, matchesQuery, projectName, relTime } from "./lib/format";
 import { applyTheme, normalizeTheme, THEME_KEY } from "./lib/theme";
 import { useMediaQuery } from "./lib/useMediaQuery";
 import type {
@@ -15,7 +15,8 @@ import type {
   View,
 } from "./lib/types";
 import { CommandPalette } from "./components/CommandPalette";
-import { DetailPanel, InspectorPane } from "./components/DetailPanel";
+import { DetailPanel } from "./components/EventInspector";
+import { InspectorPane } from "./components/Inspector";
 import { EventList } from "./components/EventList";
 import { FilterBar } from "./components/FilterBar";
 import { FlaggedView } from "./components/FlaggedView";
@@ -228,6 +229,22 @@ function App() {
 
   const selectedSession = sessions.find((s) => s.session_id === selected) ?? null;
 
+  // Prev/next in the inspector walks the list the event was opened from.
+  const detailList = view === "timeline" ? filteredEvents : view === "flagged" ? flagged : view === "packages" ? packages : [];
+  const detailIndex = detail ? detailList.findIndex((e) => e.id === detail.event.id) : -1;
+  const detailPosition = detailIndex >= 0 ? { index: detailIndex, total: detailList.length } : null;
+  const stepDetail = useCallback(
+    (delta: 1 | -1) => {
+      const next = detailList[detailIndex + delta];
+      if (next) setDetail({ event: next, acked: detail?.acked });
+    },
+    [detailList, detailIndex, detail?.acked],
+  );
+  const readSelectedSession = useCallback(
+    (s: SessionSummary) => setThreadFor({ sessionId: s.session_id, agent: s.agent, title: projectName(s.cwd) }),
+    [],
+  );
+
   return (
     <div className="shell">
       {paletteOpen && (
@@ -243,6 +260,9 @@ function App() {
         <DetailPanel
           event={detail.event}
           acked={detail.acked}
+          advanced={advanced}
+          position={detailPosition}
+          onStep={stepDetail}
           onClose={closeDetail}
           onReadThread={openThread}
           onAck={ackFromPanel}
@@ -315,13 +335,6 @@ function App() {
                       })
                     }
                   />
-                  {selectedSession.hook_tool_count > 0 && selectedSession.tail_tool_count > 0 && (
-                    <p className="gap-banner">
-                      Capture gap: {selectedSession.tail_tool_count} of this session's
-                      tool calls were recovered from the transcript only. Hooks were
-                      disabled for part of the session, or Tracon wasn't running.
-                    </p>
-                  )}
                   <FilterBar query={query} onQuery={setQuery} kind={kind} onKind={setKind} />
                   {exportNote && <p className="export-note">{exportNote}</p>}
                 </div>
@@ -377,6 +390,22 @@ function App() {
         <InspectorPane
           event={detail?.event ?? null}
           acked={detail?.acked}
+          advanced={advanced}
+          position={detailPosition}
+          onStep={stepDetail}
+          context={{
+            view,
+            session: selectedSession,
+            sessionEvents: events,
+            stats,
+            capture,
+            liveCount: live.length,
+            updatedAt,
+            onOpenEvent: openDetail,
+            onNavigate: setView,
+            onReadSession: readSelectedSession,
+            onExportSession: exportSelected,
+          }}
           onClose={closeDetail}
           onReadThread={openThread}
           onAck={ackFromPanel}
@@ -400,27 +429,26 @@ function SessionHeader(props: {
         <p className="view-sub">
           {agentLabel(s.agent)} · {s.event_count} events · {s.command_count} commands ·{" "}
           {durationLabel(s.started_at, s.last_at)}
+          {s.hook_tool_count > 0 && s.tail_tool_count > 0 && (
+            <span
+              className="gap-chip"
+              title="Hooks were off for part of this session, or Tracon was not running. Those tool calls were recovered from the transcript."
+            >
+              {s.tail_tool_count} recovered from transcript
+            </span>
+          )}
         </p>
       </div>
       <div className="session-actions">
         <button className="btn-dark" onClick={props.onReadThread}>
           Conversation
         </button>
-        <button className="btn-dark" onClick={props.onExport}>
+        <button className="ack-btn" onClick={props.onExport}>
           Export JSON
         </button>
       </div>
     </div>
   );
-}
-
-function durationLabel(start: string, end: string): string {
-  const ms = new Date(end).getTime() - new Date(start).getTime();
-  if (!Number.isFinite(ms) || ms < 0) return "";
-  const mins = Math.round(ms / 60000);
-  if (mins < 1) return "under a minute";
-  if (mins < 60) return `${mins} min`;
-  return `${Math.floor(mins / 60)}h ${mins % 60}m`;
 }
 
 export default App;

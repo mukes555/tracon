@@ -135,6 +135,15 @@ export function severityOf(flag: string, summary: string | null): Severity {
   return "notice";
 }
 
+export function durationLabel(start: string, end: string): string {
+  const ms = new Date(end).getTime() - new Date(start).getTime();
+  if (!Number.isFinite(ms) || ms < 0) return "";
+  const mins = Math.round(ms / 60000);
+  if (mins < 1) return "under a minute";
+  if (mins < 60) return `${mins} min`;
+  return `${Math.floor(mins / 60)}h ${mins % 60}m`;
+}
+
 export function relTime(ts: string): string {
   const ms = Date.now() - new Date(ts).getTime();
   if (!Number.isFinite(ms) || ms < 0) return "just now";

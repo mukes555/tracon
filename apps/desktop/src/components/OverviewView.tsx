@@ -69,29 +69,17 @@ export function OverviewView(props: {
         </section>
       )}
 
-      <section className="card stat-strip">
+      <div className="today-strip">
+        <Stat label="sessions today" value={stats?.sessions_today} onOpen={() => props.onNavigate("timeline")} />
+        <Stat label="commands today" value={stats?.commands_today} onOpen={() => props.onNavigate("timeline")} />
+        <Stat label="installs today" value={stats?.packages_today} onOpen={() => props.onNavigate("packages")} />
         <Stat
-          label="Sessions today"
-          value={stats?.sessions_today}
-          onOpen={() => props.onNavigate("timeline")}
-        />
-        <Stat
-          label="Commands today"
-          value={stats?.commands_today}
-          onOpen={() => props.onNavigate("timeline")}
-        />
-        <Stat
-          label="Packages today"
-          value={stats?.packages_today}
-          onOpen={() => props.onNavigate("packages")}
-        />
-        <Stat
-          label="Flagged all time"
+          label="open flags"
           value={stats?.flagged_count}
           tone={stats && stats.flagged_count > 0 ? "bad" : undefined}
           onOpen={() => props.onNavigate("flagged")}
         />
-      </section>
+      </div>
 
       <section className="card">
         <h3>Activity · last 14 days</h3>
@@ -163,12 +151,8 @@ function Stat(props: {
   onOpen: () => void;
 }) {
   return (
-    <button
-      className={`stat-cell${props.tone ? " tone-bad" : ""}`}
-      onClick={props.onOpen}
-    >
-      <span className="stat-value">{props.value?.toLocaleString() ?? "-"}</span>
-      <span className="stat-label">{props.label}</span>
+    <button className={`stat-pill${props.tone ? " tone-bad" : ""}`} onClick={props.onOpen}>
+      <b>{props.value?.toLocaleString() ?? "-"}</b> {props.label}
     </button>
   );
 }

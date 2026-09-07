@@ -144,6 +144,12 @@ export const InfoIcon = (p: IconProps) => (
   </Svg>
 );
 
+export const ChevronIcon = (p: IconProps & { dir: "up" | "down" }) => (
+  <Svg {...p}>
+    {p.dir === "up" ? <path d="M4 10 L8 6 L12 10" /> : <path d="M4 6 L8 10 L12 6" />}
+  </Svg>
+);
+
 export const CheckIcon = (p: IconProps) => (
   <Svg {...p}>
     <path d="M3.2 8.4 L6.6 11.6 L12.8 4.8" />

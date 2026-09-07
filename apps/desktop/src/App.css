@@ -522,52 +522,57 @@ code {
 
 /* One quiet KPI strip instead of colored tiles: big numbers, muted labels,
    hairline dividers. Color appears only when it means something (flagged). */
-.stat-strip {
+
+
+
+
+
+
+
+/* Today's numbers as one quiet line of pills. The docked inspector shows
+   the same numbers on wide windows, so the strip steps aside there. */
+.today-strip {
   display: flex;
   flex-wrap: wrap;
-  padding: 6px;
+  gap: 8px;
+  margin-bottom: 16px;
 }
 
-.stat-cell {
-  flex: 1;
-  min-width: 150px;
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  background: none;
-  border: none;
-  border-radius: 10px;
-  text-align: left;
-  padding: 12px 18px;
+.stat-pill {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  padding: 6px 12px;
+  border-radius: 99px;
+  background: var(--surface);
+  border: 1px solid var(--line-soft);
+  color: var(--ink-3);
+  font-size: 12px;
   cursor: pointer;
 }
 
-.stat-cell + .stat-cell {
-  border-left: 1px solid var(--line-soft);
-  border-radius: 0 10px 10px 0;
+.stat-pill:hover {
+  border-color: var(--line);
+  color: var(--ink-2);
 }
 
-.stat-cell:hover {
-  background: var(--surface-2);
-}
-
-.stat-value {
+.stat-pill b {
   font-family: var(--font-display);
-  font-size: 26px;
+  font-size: 15px;
   font-weight: 650;
   letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
   color: var(--ink);
-  line-height: 1.15;
 }
 
-.stat-cell.tone-bad .stat-value {
+.stat-pill.tone-bad b {
   color: var(--bad);
 }
 
-.stat-label {
-  font-size: 12px;
-  color: var(--ink-3);
+@media (min-width: 1280px) {
+  .today-strip {
+    display: none;
+  }
 }
 
 .bars {
@@ -1791,16 +1796,6 @@ code {
   margin-bottom: 6px;
 }
 
-.gap-banner {
-  font-size: 12.5px;
-  color: var(--accent-ink);
-  background: var(--accent-soft);
-  border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
-  border-radius: 9px;
-  padding: 8px 14px;
-  margin-bottom: 12px;
-  max-width: 760px;
-}
 
 .sidebar-search {
   width: 100%;
@@ -2188,37 +2183,42 @@ code {
   }
 }
 
-.drawer-head {
+/* ---------- inspector content (docked column and slide-over) ---------- */
+
+.insp-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin: -6px -6px 8px 0;
+}
+
+.insp-close {
+  margin-left: auto;
+}
+
+.insp-head {
   display: flex;
   align-items: flex-start;
   gap: 12px;
   margin-bottom: 14px;
 }
 
-.drawer-kind {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 34px;
-  height: 34px;
-  border-radius: 10px;
-  background: var(--surface-2);
-  color: var(--ink-2);
-  flex-shrink: 0;
-}
-
-.drawer-title {
+.insp-title {
   min-width: 0;
+  flex: 1;
 }
 
-.drawer-title h2 {
+.insp-title h2 {
   font-family: var(--font-display);
   font-size: 16px;
   font-weight: 650;
   letter-spacing: -0.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.drawer-title p {
+.insp-title p {
   font-size: 12px;
   color: var(--ink-3);
   display: flex;
@@ -2227,23 +2227,19 @@ code {
   flex-wrap: wrap;
 }
 
-.drawer-head .thread-close {
-  margin-left: auto;
+.insp-pos {
+  font-size: 11px;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+  padding: 0 4px;
 }
 
-.drawer-flag {
-  display: inline-block;
-  align-self: flex-start;
-  background: var(--bad-soft);
-  color: var(--bad);
-  border-radius: 99px;
-  font-size: 12px;
-  font-weight: 600;
-  padding: 3px 12px;
-  margin-bottom: 12px;
+.icon-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
 }
 
-.drawer-summary {
+.insp-block {
   display: block;
   font-family: var(--mono);
   font-size: 12.5px;
@@ -2251,43 +2247,281 @@ code {
   background: var(--surface-2);
   border-radius: 10px;
   padding: 10px 14px;
-  margin-bottom: 14px;
+  margin-bottom: 12px;
   word-break: break-word;
   white-space: pre-wrap;
+  line-height: 1.5;
 }
 
-.drawer-actions {
+.insp-block.prose {
+  font-family: var(--font-ui);
+  font-size: 13px;
+}
+
+/* Why the flag matters: chip on top, one sentence under it. */
+.insp-why {
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin-bottom: 14px;
+  background: var(--bad-soft);
+  border: 1px solid color-mix(in srgb, var(--bad) 20%, transparent);
+}
+
+.insp-why.sev-warning {
+  background: var(--warn-soft);
+  border-color: color-mix(in srgb, var(--warn) 25%, transparent);
+}
+
+.insp-why.sev-notice {
+  background: var(--surface-2);
+  border-color: var(--line-soft);
+}
+
+.insp-why .flag-chip {
+  margin: 0 0 6px;
+}
+
+.insp-why p {
+  font-size: 12.5px;
+  color: var(--ink-2);
+  line-height: 1.5;
+}
+
+.insp-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
   margin-bottom: 16px;
 }
 
-.drawer-actions button {
+.insp-actions button {
   white-space: nowrap;
 }
 
-.drawer-meta {
-  display: flex;
-  gap: 6px 16px;
-  flex-wrap: wrap;
+.insp-meta {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 14px;
   font-size: 11.5px;
-  color: var(--ink-3);
-  margin-bottom: 12px;
+  margin-bottom: 14px;
 }
 
-.drawer-payload {
+.insp-meta dt {
+  color: var(--ink-3);
+}
+
+.insp-meta dd {
+  color: var(--ink-2);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.insp-meta dd.mono {
+  font-family: var(--mono);
+}
+
+.insp-raw {
+  border: 1px solid var(--line-soft);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.insp-raw summary {
+  cursor: pointer;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--ink-3);
+  padding: 8px 12px;
+  list-style: none;
+}
+
+.insp-raw summary::before {
+  content: "▸ ";
+}
+
+.insp-raw[open] summary::before {
+  content: "▾ ";
+}
+
+.insp-raw pre {
   font-family: var(--mono);
   font-size: 11.5px;
   color: var(--ink-2);
-  background: var(--surface);
-  border: 1px solid var(--line-soft);
-  border-radius: 10px;
-  padding: 12px 14px;
+  padding: 0 12px 12px;
   overflow: auto;
   line-height: 1.55;
+  max-height: 360px;
+}
+
+/* Context cards when no event is open. */
+.insp-prompt {
+  font-size: 13px;
+  color: var(--ink);
+  line-height: 1.5;
+  margin-bottom: 14px;
+}
+
+.insp-stats {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.insp-stats > * {
   flex: 1;
-  min-height: 120px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--surface-2);
+  border: none;
+  text-align: left;
+  color: inherit;
+  font: inherit;
+}
+
+.insp-stats button {
+  cursor: pointer;
+}
+
+.insp-stats button:hover {
+  background: var(--accent-soft);
+}
+
+.insp-stats dd {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  line-height: 1.1;
+}
+
+.insp-stats .bad dd {
+  color: var(--bad);
+}
+
+.insp-stats dt {
+  font-size: 11px;
+  color: var(--ink-3);
+}
+
+.insp-note {
+  font-size: 11.5px;
+  color: var(--accent-ink);
+  background: var(--accent-soft);
+  border-radius: 8px;
+  padding: 6px 10px;
+  margin-bottom: 12px;
+}
+
+.insp-section {
+  margin-bottom: 16px;
+}
+
+.insp-section h3 {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-2);
+  margin-bottom: 8px;
+}
+
+.insp-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.insp-list button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  border-radius: 8px;
+  padding: 6px 8px;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+}
+
+.insp-list button:hover {
+  background: var(--surface-2);
+}
+
+.insp-list .flag-chip {
+  margin: 0;
+  font-size: 10.5px;
+}
+
+.insp-list .mono {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--ink-2);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.insp-kv {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 12.5px;
+  margin-bottom: 6px;
+}
+
+.insp-kv li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink-2);
+}
+
+.insp-kv li span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.insp-kv b {
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+
+.insp-kv li.bad b {
+  color: var(--bad);
+}
+
+.insp-hint {
+  margin-top: auto;
+  padding-top: 16px;
+  font-size: 11.5px;
+  color: var(--ink-3);
+  text-align: center;
+}
+
+/* Session header: the transcript-recovery note is a chip, not a banner. */
+.gap-chip {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 8px;
+  border-radius: 99px;
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  font-size: 11px;
+  cursor: help;
 }
 
 /* ---------- docked inspector (wide windows) ---------- */
@@ -2317,10 +2551,10 @@ code {
 }
 
 .inspector-mascot {
-  width: 150px;
-  height: 150px;
+  width: 120px;
+  height: 120px;
   object-fit: contain;
-  margin-bottom: 8px;
+  margin: 0 auto 10px;
 }
 
 /* ---------- misc ---------- */
