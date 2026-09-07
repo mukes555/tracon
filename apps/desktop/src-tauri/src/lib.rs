@@ -399,8 +399,12 @@ fn build_tray(app: &tauri::App, store: Arc<Store>) -> tauri::Result<()> {
     let menu = tray_menu(app.handle(), &store)?;
     let menu_store = store.clone();
 
+    // A monochrome template icon: macOS tints it for light and dark menu
+    // bars, where the full-color app icon just reads as a dark smudge.
+    let tray_icon = tauri::image::Image::from_bytes(include_bytes!("../icons/tray-template.png"))?;
     TrayIconBuilder::with_id("tracon-tray")
-        .icon(app.default_window_icon().expect("bundled icon").clone())
+        .icon(tray_icon)
+        .icon_as_template(true)
         .menu(&menu)
         .show_menu_on_left_click(true)
         .on_menu_event(move |app, event| match event.id.as_ref() {
