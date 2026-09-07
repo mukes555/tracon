@@ -3,6 +3,7 @@ use tracon_core::event::{AgentEvent, EventKind, EventSource};
 use tracon_core::now_iso;
 
 use crate::claude::AGENT_NAME;
+use crate::{sanitize_session_id, truncate};
 
 /// Parse one line of a Claude Code transcript (~/.claude/projects/**/*.jsonl)
 /// into zero or more events.
@@ -18,12 +19,13 @@ pub fn parse_transcript_line(line: &str) -> Vec<AgentEvent> {
     let Some(row_type) = row.get("type").and_then(Value::as_str) else {
         return Vec::new();
     };
-    let Some(session_id) = row.get("sessionId").and_then(Value::as_str) else {
+    let Some(raw_session_id) = row.get("sessionId").and_then(Value::as_str) else {
         return Vec::new();
     };
+    let session_id = sanitize_session_id(raw_session_id);
 
     let ctx = RowContext {
-        session_id,
+        session_id: &session_id,
         ts: row
             .get("timestamp")
             .and_then(Value::as_str)
@@ -206,14 +208,6 @@ fn tool_summary(tool_name: &str, input: Option<&Value>) -> Option<String> {
     Some(truncate(text, 300))
 }
 
-fn truncate(s: &str, max_chars: usize) -> String {
-    if s.chars().count() <= max_chars {
-        return s.to_string();
-    }
-    let cut: String = s.chars().take(max_chars).collect();
-    format!("{cut}...")
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -366,5 +360,22 @@ mod tests {
         assert!(parse_transcript_line("not json at all").is_empty());
         assert!(parse_transcript_line("{\"type\":\"file-history-snapshot\"}").is_empty());
         assert!(parse_transcript_line("{}").is_empty());
+    }
+
+    #[test]
+    fn transcript_session_id_is_sanitized() {
+        let line = json!({
+            "type": "user",
+            "sessionId": "../../etc",
+            "uuid": "u-1",
+            "message": {"content": "hi"}
+        })
+        .to_string();
+        let events = parse_transcript_line(&line);
+        assert_eq!(events[0].session_id, ".._.._etc");
+        assert_eq!(
+            events[0].dedupe_key.as_deref(),
+            Some(".._.._etc|UserPromptSubmit|u-1")
+        );
     }
 }

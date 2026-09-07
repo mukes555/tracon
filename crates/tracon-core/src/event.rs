@@ -76,7 +76,6 @@ pub enum EventSource {
     Hook,
     LogTail,
     Process,
-    Shim,
 }
 
 impl EventSource {
@@ -85,7 +84,6 @@ impl EventSource {
             EventSource::Hook => "hook",
             EventSource::LogTail => "log_tail",
             EventSource::Process => "process",
-            EventSource::Shim => "shim",
         }
     }
 
@@ -93,7 +91,6 @@ impl EventSource {
         match s {
             "log_tail" => EventSource::LogTail,
             "process" => EventSource::Process,
-            "shim" => EventSource::Shim,
             _ => EventSource::Hook,
         }
     }

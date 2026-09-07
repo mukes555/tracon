@@ -3,21 +3,33 @@
     "SessionStart": [
       {
         "hooks": [
-          { "type": "http", "url": "http://localhost:48620/ingest", "timeout": 5 }
+          {
+            "type": "command",
+            "command": "sh -c 'curl -s -m 5 -X POST -H \"content-type: application/json\" -H \"X-Tracon-Token: $(cat \"$HOME/.tracon/token\" 2>/dev/null)\" --data-binary @- http://localhost:48620/ingest -o /dev/null; exit 0'",
+            "timeout": 5
+          }
         ]
       }
     ],
     "SessionEnd": [
       {
         "hooks": [
-          { "type": "http", "url": "http://localhost:48620/ingest", "timeout": 1 }
+          {
+            "type": "command",
+            "command": "sh -c 'curl -s -m 1 -X POST -H \"content-type: application/json\" -H \"X-Tracon-Token: $(cat \"$HOME/.tracon/token\" 2>/dev/null)\" --data-binary @- http://localhost:48620/ingest -o /dev/null; exit 0'",
+            "timeout": 2
+          }
         ]
       }
     ],
     "UserPromptSubmit": [
       {
         "hooks": [
-          { "type": "http", "url": "http://localhost:48620/ingest", "timeout": 5 }
+          {
+            "type": "command",
+            "command": "sh -c 'curl -s -m 5 -X POST -H \"content-type: application/json\" -H \"X-Tracon-Token: $(cat \"$HOME/.tracon/token\" 2>/dev/null)\" --data-binary @- http://localhost:48620/ingest -o /dev/null; exit 0'",
+            "timeout": 5
+          }
         ]
       }
     ],
@@ -25,10 +37,14 @@
       {
         "matcher": "*",
         "hooks": [
-          { "type": "http", "url": "http://localhost:48620/ingest", "timeout": 5 },
           {
             "type": "command",
-            "command": "sh -c 'mkdir -p \"$HOME/.tracon\"; { cat; printf \"\\n\"; } >> \"$HOME/.tracon/spool.ndjson\"'",
+            "command": "sh -c 'curl -s -m 5 -X POST -H \"content-type: application/json\" -H \"X-Tracon-Token: $(cat \"$HOME/.tracon/token\" 2>/dev/null)\" --data-binary @- http://localhost:48620/ingest -o /dev/null; exit 0'",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "sh -c 'umask 077; d=\"$HOME/.tracon\"; f=\"$d/spool.ndjson\"; mkdir -p \"$d\"; s=$(wc -c 2>/dev/null < \"$f\" | tr -d \" \"); [ \"${s:-0}\" -gt 52428800 ] && exit 0; { printf \"{\\\"ts\\\":\\\"%s\\\",\\\"payload\\\":\" \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"; tr -d \"\\n\\r\"; printf \"}\\n\"; } >> \"$f\"; chmod 600 \"$f\"; exit 0'",
             "async": true
           }
         ]
@@ -38,10 +54,14 @@
       {
         "matcher": "*",
         "hooks": [
-          { "type": "http", "url": "http://localhost:48620/ingest", "timeout": 5 },
           {
             "type": "command",
-            "command": "sh -c 'mkdir -p \"$HOME/.tracon\"; { cat; printf \"\\n\"; } >> \"$HOME/.tracon/spool.ndjson\"'",
+            "command": "sh -c 'curl -s -m 5 -X POST -H \"content-type: application/json\" -H \"X-Tracon-Token: $(cat \"$HOME/.tracon/token\" 2>/dev/null)\" --data-binary @- http://localhost:48620/ingest -o /dev/null; exit 0'",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "sh -c 'umask 077; d=\"$HOME/.tracon\"; f=\"$d/spool.ndjson\"; mkdir -p \"$d\"; s=$(wc -c 2>/dev/null < \"$f\" | tr -d \" \"); [ \"${s:-0}\" -gt 52428800 ] && exit 0; { printf \"{\\\"ts\\\":\\\"%s\\\",\\\"payload\\\":\" \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"; tr -d \"\\n\\r\"; printf \"}\\n\"; } >> \"$f\"; chmod 600 \"$f\"; exit 0'",
             "async": true
           }
         ]
@@ -51,7 +71,11 @@
       {
         "matcher": "*",
         "hooks": [
-          { "type": "http", "url": "http://localhost:48620/ingest", "timeout": 5 }
+          {
+            "type": "command",
+            "command": "sh -c 'curl -s -m 5 -X POST -H \"content-type: application/json\" -H \"X-Tracon-Token: $(cat \"$HOME/.tracon/token\" 2>/dev/null)\" --data-binary @- http://localhost:48620/ingest -o /dev/null; exit 0'",
+            "timeout": 5
+          }
         ]
       }
     ],
@@ -59,7 +83,11 @@
       {
         "matcher": "*",
         "hooks": [
-          { "type": "http", "url": "http://localhost:48620/ingest", "timeout": 5 }
+          {
+            "type": "command",
+            "command": "sh -c 'curl -s -m 5 -X POST -H \"content-type: application/json\" -H \"X-Tracon-Token: $(cat \"$HOME/.tracon/token\" 2>/dev/null)\" --data-binary @- http://localhost:48620/ingest -o /dev/null; exit 0'",
+            "timeout": 5
+          }
         ]
       }
     ],
@@ -67,42 +95,66 @@
       {
         "matcher": "*",
         "hooks": [
-          { "type": "http", "url": "http://localhost:48620/ingest", "timeout": 5 }
+          {
+            "type": "command",
+            "command": "sh -c 'curl -s -m 5 -X POST -H \"content-type: application/json\" -H \"X-Tracon-Token: $(cat \"$HOME/.tracon/token\" 2>/dev/null)\" --data-binary @- http://localhost:48620/ingest -o /dev/null; exit 0'",
+            "timeout": 5
+          }
         ]
       }
     ],
     "SubagentStart": [
       {
         "hooks": [
-          { "type": "http", "url": "http://localhost:48620/ingest", "timeout": 5 }
+          {
+            "type": "command",
+            "command": "sh -c 'curl -s -m 5 -X POST -H \"content-type: application/json\" -H \"X-Tracon-Token: $(cat \"$HOME/.tracon/token\" 2>/dev/null)\" --data-binary @- http://localhost:48620/ingest -o /dev/null; exit 0'",
+            "timeout": 5
+          }
         ]
       }
     ],
     "SubagentStop": [
       {
         "hooks": [
-          { "type": "http", "url": "http://localhost:48620/ingest", "timeout": 5 }
+          {
+            "type": "command",
+            "command": "sh -c 'curl -s -m 5 -X POST -H \"content-type: application/json\" -H \"X-Tracon-Token: $(cat \"$HOME/.tracon/token\" 2>/dev/null)\" --data-binary @- http://localhost:48620/ingest -o /dev/null; exit 0'",
+            "timeout": 5
+          }
         ]
       }
     ],
     "Stop": [
       {
         "hooks": [
-          { "type": "http", "url": "http://localhost:48620/ingest", "timeout": 5 }
+          {
+            "type": "command",
+            "command": "sh -c 'curl -s -m 5 -X POST -H \"content-type: application/json\" -H \"X-Tracon-Token: $(cat \"$HOME/.tracon/token\" 2>/dev/null)\" --data-binary @- http://localhost:48620/ingest -o /dev/null; exit 0'",
+            "timeout": 5
+          }
         ]
       }
     ],
     "PreCompact": [
       {
         "hooks": [
-          { "type": "http", "url": "http://localhost:48620/ingest", "timeout": 5 }
+          {
+            "type": "command",
+            "command": "sh -c 'curl -s -m 5 -X POST -H \"content-type: application/json\" -H \"X-Tracon-Token: $(cat \"$HOME/.tracon/token\" 2>/dev/null)\" --data-binary @- http://localhost:48620/ingest -o /dev/null; exit 0'",
+            "timeout": 5
+          }
         ]
       }
     ],
     "ConfigChange": [
       {
         "hooks": [
-          { "type": "http", "url": "http://localhost:48620/ingest", "timeout": 5 }
+          {
+            "type": "command",
+            "command": "sh -c 'curl -s -m 5 -X POST -H \"content-type: application/json\" -H \"X-Tracon-Token: $(cat \"$HOME/.tracon/token\" 2>/dev/null)\" --data-binary @- http://localhost:48620/ingest -o /dev/null; exit 0'",
+            "timeout": 5
+          }
         ]
       }
     ]

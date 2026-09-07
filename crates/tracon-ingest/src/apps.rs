@@ -60,7 +60,7 @@ fn run_watcher(store: Arc<Store>, dirs: Vec<PathBuf>) {
         for path in event.paths {
             if let Some(mut record) = app_install_event(&path) {
                 enrich_with_active_agents(&store, &mut record);
-                let _ = store.insert(&record);
+                let _ = crate::sink::insert_event(&store, record);
             }
         }
     }

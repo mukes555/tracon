@@ -2,25 +2,39 @@
   "version": 1,
   "hooks": {
     "sessionStart": [
-      { "command": "sh -c 'cat | curl -s -m 5 -X POST -H \"content-type: application/json\" --data-binary @- http://localhost:48620/ingest -o /dev/null; exit 0'" }
+      {
+        "command": "sh -c 'curl -s -m 5 -X POST -H \"content-type: application/json\" -H \"X-Tracon-Token: $(cat \"$HOME/.tracon/token\" 2>/dev/null)\" --data-binary @- http://localhost:48620/ingest -o /dev/null; exit 0'"
+      }
     ],
     "sessionEnd": [
-      { "command": "sh -c 'cat | curl -s -m 5 -X POST -H \"content-type: application/json\" --data-binary @- http://localhost:48620/ingest -o /dev/null; exit 0'" }
+      {
+        "command": "sh -c 'curl -s -m 5 -X POST -H \"content-type: application/json\" -H \"X-Tracon-Token: $(cat \"$HOME/.tracon/token\" 2>/dev/null)\" --data-binary @- http://localhost:48620/ingest -o /dev/null; exit 0'"
+      }
     ],
     "beforeSubmitPrompt": [
-      { "command": "sh -c 'cat | curl -s -m 5 -X POST -H \"content-type: application/json\" --data-binary @- http://localhost:48620/ingest -o /dev/null; exit 0'" }
+      {
+        "command": "sh -c 'curl -s -m 5 -X POST -H \"content-type: application/json\" -H \"X-Tracon-Token: $(cat \"$HOME/.tracon/token\" 2>/dev/null)\" --data-binary @- http://localhost:48620/ingest -o /dev/null; exit 0'"
+      }
     ],
     "beforeShellExecution": [
-      { "command": "sh -c 'cat | curl -s -m 5 -X POST -H \"content-type: application/json\" --data-binary @- http://localhost:48620/ingest -o /dev/null; exit 0'" }
+      {
+        "command": "sh -c 'curl -s -m 5 -X POST -H \"content-type: application/json\" -H \"X-Tracon-Token: $(cat \"$HOME/.tracon/token\" 2>/dev/null)\" --data-binary @- http://localhost:48620/ingest -o /dev/null; exit 0'"
+      }
     ],
     "afterShellExecution": [
-      { "command": "sh -c 'cat | curl -s -m 5 -X POST -H \"content-type: application/json\" --data-binary @- http://localhost:48620/ingest -o /dev/null; exit 0'" }
+      {
+        "command": "sh -c 'curl -s -m 5 -X POST -H \"content-type: application/json\" -H \"X-Tracon-Token: $(cat \"$HOME/.tracon/token\" 2>/dev/null)\" --data-binary @- http://localhost:48620/ingest -o /dev/null; exit 0'"
+      }
     ],
     "afterFileEdit": [
-      { "command": "sh -c 'cat | curl -s -m 5 -X POST -H \"content-type: application/json\" --data-binary @- http://localhost:48620/ingest -o /dev/null; exit 0'" }
+      {
+        "command": "sh -c 'curl -s -m 5 -X POST -H \"content-type: application/json\" -H \"X-Tracon-Token: $(cat \"$HOME/.tracon/token\" 2>/dev/null)\" --data-binary @- http://localhost:48620/ingest -o /dev/null; exit 0'"
+      }
     ],
     "beforeMCPExecution": [
-      { "command": "sh -c 'cat | curl -s -m 5 -X POST -H \"content-type: application/json\" --data-binary @- http://localhost:48620/ingest -o /dev/null; exit 0'" }
+      {
+        "command": "sh -c 'curl -s -m 5 -X POST -H \"content-type: application/json\" -H \"X-Tracon-Token: $(cat \"$HOME/.tracon/token\" 2>/dev/null)\" --data-binary @- http://localhost:48620/ingest -o /dev/null; exit 0'"
+      }
     ]
   }
 }

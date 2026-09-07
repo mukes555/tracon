@@ -2,6 +2,8 @@ use serde_json::Value;
 use tracon_core::event::{AgentEvent, EventKind, EventSource};
 use tracon_core::now_iso;
 
+use crate::{sanitize_session_id, truncate};
+
 pub const AGENT_NAME: &str = "gemini";
 
 /// Normalize one Gemini CLI hook payload. Gemini's payload shape overlaps
@@ -13,11 +15,12 @@ pub fn events_from_hook_payload(payload: &Value) -> Vec<AgentEvent> {
     let Some(hook_event) = payload.get("hook_event_name").and_then(Value::as_str) else {
         return Vec::new();
     };
-    let session_id = payload
-        .get("session_id")
-        .and_then(Value::as_str)
-        .unwrap_or("unknown")
-        .to_string();
+    let session_id = sanitize_session_id(
+        payload
+            .get("session_id")
+            .and_then(Value::as_str)
+            .unwrap_or_default(),
+    );
     let ts = payload
         .get("timestamp")
         .and_then(Value::as_str)
@@ -132,21 +135,13 @@ fn summary_for(
         .and_then(|i| i.get("file_path").or_else(|| i.get("path")))
         .and_then(Value::as_str);
     if let Some(path) = file_path {
-        return path.to_string();
+        return truncate(path, 300);
     }
     raw_tool.unwrap_or(hook_event).to_string()
 }
 
 fn prefix(s: &str) -> String {
     s.chars().take(80).collect()
-}
-
-fn truncate(s: &str, max_chars: usize) -> String {
-    if s.chars().count() <= max_chars {
-        return s.to_string();
-    }
-    let cut: String = s.chars().take(max_chars).collect();
-    format!("{cut}...")
 }
 
 #[cfg(test)]
@@ -199,5 +194,48 @@ mod tests {
             "tool_input": {"command": "rm -rf ~/"}
         });
         assert!(events_from_hook_payload(&danger)[0].flag.is_some());
+    }
+
+    #[test]
+    fn camel_case_fallbacks_are_read() {
+        let payload = json!({
+            "session_id": "g",
+            "hook_event_name": "BeforeTool",
+            "toolName": "run_shell_command",
+            "toolArgs": {"command": "pip install requests"}
+        });
+        let events = events_from_hook_payload(&payload);
+        assert_eq!(events.len(), 2);
+        assert_eq!(events[0].tool_name.as_deref(), Some("shell"));
+        assert_eq!(events[0].summary.as_deref(), Some("pip install requests"));
+        assert_eq!(events[1].kind, EventKind::PackageInstall);
+
+        let nested = json!({
+            "session_id": "g",
+            "hook_event_name": "AfterTool",
+            "tool": {"name": "read_file"},
+            "args": {"path": "README.md"}
+        });
+        let events = events_from_hook_payload(&nested);
+        assert_eq!(events[0].kind, EventKind::ToolResult);
+        assert_eq!(events[0].tool_name.as_deref(), Some("Read"));
+        assert_eq!(events[0].summary.as_deref(), Some("README.md"));
+    }
+
+    #[test]
+    fn session_id_is_sanitized_and_file_paths_truncated() {
+        let long_path = format!("/{}", "a".repeat(400));
+        let payload = json!({
+            "session_id": "../../etc",
+            "hook_event_name": "BeforeTool",
+            "tool_name": "write_file",
+            "tool_input": {"file_path": long_path}
+        });
+        let events = events_from_hook_payload(&payload);
+        assert_eq!(events[0].session_id, ".._.._etc");
+        assert_eq!(events[0].summary.as_deref().map(str::len), Some(303));
+
+        let missing = json!({"hook_event_name": "SessionStart"});
+        assert_eq!(events_from_hook_payload(&missing)[0].session_id, "unknown");
     }
 }

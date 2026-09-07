@@ -35,7 +35,13 @@ pub fn purge_once(store: &Store) -> usize {
     let Ok(cutoff) = cutoff.format(&Rfc3339) else {
         return 0;
     };
-    store.purge_events_before(&cutoff).unwrap_or(0)
+    let removed = store.purge_events_before(&cutoff).unwrap_or(0);
+    // Deleting rows never shrinks the file on its own; checkpoint the WAL
+    // and hand freed pages back after a purge that actually removed rows.
+    if removed > 0 {
+        let _ = store.compact();
+    }
+    removed
 }
 
 #[cfg(test)]

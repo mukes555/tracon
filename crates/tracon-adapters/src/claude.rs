@@ -2,6 +2,8 @@ use serde_json::Value;
 use tracon_core::event::{AgentEvent, EventKind, EventSource};
 use tracon_core::now_iso;
 
+use crate::{sanitize_session_id, truncate};
+
 pub const AGENT_NAME: &str = "claude-code";
 
 /// All events one hook payload yields: the normalized event itself, plus a
@@ -50,7 +52,7 @@ fn derive_package_event(event: &AgentEvent, payload: &Value) -> Option<AgentEven
 /// silently because the recorder must never give the agent a reason to fail.
 pub fn normalize_hook_payload(payload: &Value) -> Option<AgentEvent> {
     let hook_event = payload.get("hook_event_name")?.as_str()?.to_string();
-    let session_id = str_field(payload, "session_id").unwrap_or_else(|| "unknown".into());
+    let session_id = sanitize_session_id(&str_field(payload, "session_id").unwrap_or_default());
     let tool_name = str_field(payload, "tool_name");
     let flag = bash_command(payload, tool_name.as_deref())
         .and_then(|cmd| crate::danger::assess_command(&cmd));
@@ -136,14 +138,6 @@ fn input_str(tool_input: Option<&Value>, key: &str) -> Option<String> {
     tool_input?.get(key)?.as_str().map(String::from)
 }
 
-fn truncate(s: &str, max_chars: usize) -> String {
-    if s.chars().count() <= max_chars {
-        return s.to_string();
-    }
-    let cut: String = s.chars().take(max_chars).collect();
-    format!("{cut}...")
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -184,5 +178,19 @@ mod tests {
     #[test]
     fn ignores_non_hook_payloads() {
         assert!(normalize_hook_payload(&json!({"foo": "bar"})).is_none());
+    }
+
+    #[test]
+    fn session_id_is_sanitized() {
+        let payload = json!({"session_id": "../../etc", "hook_event_name": "SessionStart"});
+        let event = normalize_hook_payload(&payload).unwrap();
+        assert_eq!(event.session_id, ".._.._etc");
+        assert_eq!(event.dedupe_key, None);
+
+        let missing = json!({"hook_event_name": "SessionStart"});
+        assert_eq!(
+            normalize_hook_payload(&missing).unwrap().session_id,
+            "unknown"
+        );
     }
 }

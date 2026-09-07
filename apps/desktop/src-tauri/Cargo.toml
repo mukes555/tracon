@@ -24,3 +24,5 @@ tokio.workspace = true
 tracon-core = { path = "../../../crates/tracon-core" }
 tracon-ingest = { path = "../../../crates/tracon-ingest" }
 tauri-plugin-notification = "2"
+tauri-plugin-log = "2"
+log = "0.4"

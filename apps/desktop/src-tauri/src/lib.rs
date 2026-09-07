@@ -1,15 +1,24 @@
 use std::sync::Arc;
 
-use tauri::menu::{Menu, MenuItem};
-use tauri::tray::TrayIconBuilder;
 use tauri::Manager;
+
+mod tray;
+mod workers;
 use tracon_core::event::AgentEvent;
-use tracon_core::store::{
-    CaptureCount, ChangeToken, DayCount, LiveSession, SessionSummary, Stats, Store,
-};
+use tracon_core::store::{CaptureCount, DayCount, LiveSession, SessionSummary, Stats, Store};
 
 struct AppState {
     store: Arc<Store>,
+    log_path: std::path::PathBuf,
+}
+
+/// The core change token plus the capture switch, so the UI learns about a
+/// pause from the same 3s poll it already runs.
+#[derive(serde::Serialize)]
+struct ChangeToken {
+    #[serde(flatten)]
+    core: tracon_core::store::ChangeToken,
+    paused: bool,
 }
 
 /// Every store query runs on a blocking worker: a sync command executes on
@@ -52,7 +61,58 @@ async fn event_payload(
 #[tauri::command]
 async fn change_token(state: tauri::State<'_, AppState>) -> Result<ChangeToken, String> {
     let store = state.store.clone();
-    run_query(move || store.change_token()).await
+    run_query(move || {
+        Ok(ChangeToken {
+            core: store.change_token()?,
+            paused: store.capture_paused(),
+        })
+    })
+    .await
+}
+
+#[tauri::command]
+async fn capture_paused(state: tauri::State<'_, AppState>) -> Result<bool, String> {
+    let store = state.store.clone();
+    run_query(move || Ok(store.capture_paused())).await
+}
+
+#[tauri::command]
+async fn set_capture_paused(paused: bool, state: tauri::State<'_, AppState>) -> Result<(), String> {
+    let store = state.store.clone();
+    run_query(move || store.set_setting("capture_paused", if paused { "true" } else { "false" }))
+        .await
+}
+
+/// Delete every recorded event. The UI asks twice before calling this.
+#[tauri::command]
+async fn purge_all(state: tauri::State<'_, AppState>) -> Result<i64, String> {
+    let store = state.store.clone();
+    run_query(move || {
+        let removed = store.stats()?.event_count;
+        store.purge_all()?;
+        store.compact()?;
+        Ok(removed)
+    })
+    .await
+}
+
+#[tauri::command]
+async fn purge_session(
+    session_id: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<usize, String> {
+    let store = state.store.clone();
+    run_query(move || store.purge_session(&session_id)).await
+}
+
+#[tauri::command]
+fn app_version(app: tauri::AppHandle) -> String {
+    app.package_info().version.to_string()
+}
+
+#[tauri::command]
+fn log_path(state: tauri::State<'_, AppState>) -> String {
+    state.log_path.display().to_string()
 }
 
 #[tauri::command]
@@ -155,7 +215,20 @@ struct CaptureStatus {
     claude_dir_found: bool,
     codex_dir_found: bool,
     cursor_found: bool,
+    gemini_found: bool,
+    insert_failures: u64,
+    last_error: Option<String>,
     counts: Vec<CaptureCount>,
+}
+
+fn home_dir() -> Option<std::path::PathBuf> {
+    std::env::var_os("HOME")
+        .or_else(|| std::env::var_os("USERPROFILE"))
+        .map(std::path::PathBuf::from)
+}
+
+fn gemini_installed() -> bool {
+    home_dir().is_some_and(|h| h.join(".gemini").is_dir())
 }
 
 fn cursor_installed() -> bool {
@@ -177,6 +250,9 @@ async fn capture_status(state: tauri::State<'_, AppState>) -> Result<CaptureStat
             claude_dir_found: tailer::claude_projects_dir().is_some_and(|d| d.is_dir()),
             codex_dir_found: tailer::codex_sessions_dir().is_some_and(|d| d.is_dir()),
             cursor_found: cursor_installed(),
+            gemini_found: gemini_installed(),
+            insert_failures: tracon_ingest::health().insert_failures,
+            last_error: tracon_ingest::health().last_error,
             counts: store.capture_counts()?,
         })
     })
@@ -213,8 +289,19 @@ async fn set_setting(
 #[tauri::command]
 fn import_full_history(state: tauri::State<'_, AppState>) -> Result<String, String> {
     use tracon_ingest::tailer;
+    static RUNNING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+    if RUNNING.swap(true, std::sync::atomic::Ordering::SeqCst) {
+        return Ok("already running".into());
+    }
     let store = state.store.clone();
     std::thread::spawn(move || {
+        struct Done;
+        impl Drop for Done {
+            fn drop(&mut self) {
+                RUNNING.store(false, std::sync::atomic::Ordering::SeqCst);
+            }
+        }
+        let _done = Done;
         if let Some(dir) = tailer::claude_projects_dir() {
             tailer::import_full_tree(&store, &dir, tailer::claude_parser);
         }
@@ -238,20 +325,39 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_notification::init())
+        // A rotating file in the app log dir, revealed from Settings, so a
+        // user can send something when capture goes wrong.
+        .plugin(
+            tauri_plugin_log::Builder::new()
+                .clear_targets()
+                .target(tauri_plugin_log::Target::new(
+                    tauri_plugin_log::TargetKind::LogDir { file_name: None },
+                ))
+                .target(tauri_plugin_log::Target::new(
+                    tauri_plugin_log::TargetKind::Stdout,
+                ))
+                .level(log::LevelFilter::Info)
+                .build(),
+        )
         .setup(|app| {
             let store = open_store(app)?;
+            // The log plugin names the file after the app when no name is given.
+            let log_name = format!("{}.log", app.package_info().name);
+            let log_path = app.path().app_log_dir()?.join(log_name);
             app.manage(AppState {
                 store: store.clone(),
+                log_path,
             });
-            spawn_ingest_server(store.clone());
-            spawn_spool_drainer(store.clone());
-            spawn_log_tailers(store.clone());
+            let token = workers::ingest_token()?;
+            workers::spawn_ingest_server(store.clone(), token);
+            workers::spawn_spool_drainer(store.clone());
+            workers::spawn_log_tailers(store.clone());
             tracon_ingest::apps::spawn_app_watcher(store.clone());
-            spawn_flag_backfill(store.clone());
-            spawn_flag_notifier(app.handle().clone(), store.clone());
+            workers::spawn_flag_backfill(store.clone());
+            workers::spawn_flag_notifier(app.handle().clone(), store.clone());
             tauri::async_runtime::spawn(tracon_ingest::intel::run_worker(store.clone()));
             tauri::async_runtime::spawn(tracon_ingest::retention::run_worker(store.clone()));
-            build_tray(app, store)?;
+            tray::build_tray(app, store)?;
             Ok(())
         })
         // Closing the window must not stop the recorder: hide to tray instead.
@@ -281,7 +387,13 @@ pub fn run() {
             get_setting,
             set_setting,
             import_full_history,
-            data_dir
+            data_dir,
+            capture_paused,
+            set_capture_paused,
+            purge_all,
+            purge_session,
+            app_version,
+            log_path
         ])
         .run(tauri::generate_context!())
         .expect("error while running tracon");
@@ -291,179 +403,4 @@ fn open_store(app: &tauri::App) -> anyhow::Result<Arc<Store>> {
     let data_dir = app.path().app_data_dir()?;
     std::fs::create_dir_all(&data_dir)?;
     Ok(Arc::new(Store::open(&data_dir.join("tracon.db"))?))
-}
-
-fn spawn_ingest_server(store: Arc<Store>) {
-    tauri::async_runtime::spawn(async move {
-        // A failed bind (port in use) must not take the app down; the UI still
-        // serves historical data and the user gets pointed at the port setting.
-        if let Err(err) = tracon_ingest::serve(store, tracon_ingest::DEFAULT_PORT).await {
-            eprintln!("tracon: ingest server not running: {err}");
-        }
-    });
-}
-
-/// Backfill events the plugin spooled while the app was closed, then keep
-/// draining periodically so long-lived sessions don't wait for a restart.
-fn spawn_spool_drainer(store: Arc<Store>) {
-    let Some(spool_path) = tracon_ingest::spool::default_spool_path() else {
-        return;
-    };
-    tauri::async_runtime::spawn(async move {
-        loop {
-            let _ = tracon_ingest::spool::drain_spool(&store, &spool_path);
-            tokio::time::sleep(std::time::Duration::from_secs(60)).await;
-        }
-    });
-}
-
-/// Read-only tailing of agent log trees for backfill and cross-checks.
-/// Tracon never writes to ~/.claude or ~/.codex; offsets live in its own DB.
-fn spawn_log_tailers(store: Arc<Store>) {
-    use tracon_ingest::tailer;
-    if let Some(dir) = tailer::claude_projects_dir() {
-        tailer::spawn_log_tailer(store.clone(), dir, tailer::claude_parser);
-    }
-    if let Some(dir) = tailer::codex_sessions_dir() {
-        tailer::spawn_log_tailer(store, dir, tailer::codex_parser);
-    }
-}
-
-/// OS notification when an agent does something flag-worthy: the whole point
-/// of a watchdog is telling you while you're away. Baselines at the current
-/// max id so history never renotifies; the toggle lives in Settings.
-fn spawn_flag_notifier(app: tauri::AppHandle, store: Arc<Store>) {
-    use tauri_plugin_notification::NotificationExt;
-
-    tauri::async_runtime::spawn(async move {
-        let mut last_id = store.max_event_id().unwrap_or(0);
-        loop {
-            tokio::time::sleep(std::time::Duration::from_secs(10)).await;
-            let enabled = store
-                .setting("notify_flags")
-                .ok()
-                .flatten()
-                .map(|v| v != "false")
-                .unwrap_or(true);
-            if !enabled {
-                // Keep the baseline moving so re-enabling doesn't dump backlog.
-                last_id = store.max_event_id().unwrap_or(last_id);
-                continue;
-            }
-            let Ok(fresh) = store.flagged_events_after(last_id, 20) else {
-                continue;
-            };
-            if fresh.is_empty() {
-                continue;
-            }
-            last_id = fresh.iter().filter_map(|e| e.id).max().unwrap_or(last_id);
-
-            if fresh.len() > 3 {
-                let _ = app
-                    .notification()
-                    .builder()
-                    .title("Tracon: multiple actions flagged")
-                    .body(format!(
-                        "{} flagged agent actions just recorded",
-                        fresh.len()
-                    ))
-                    .show();
-                continue;
-            }
-            for event in fresh {
-                let flag = event.flag.unwrap_or_else(|| "flagged".into());
-                let what = event.summary.unwrap_or_default();
-                let body: String = format!("{flag}: {what}").chars().take(160).collect();
-                let _ = app
-                    .notification()
-                    .builder()
-                    .title("Tracon flagged an agent action")
-                    .body(body)
-                    .show();
-            }
-        }
-    });
-}
-
-/// One pass over events recorded before danger flags existed.
-fn spawn_flag_backfill(store: Arc<Store>) {
-    std::thread::spawn(move || {
-        let _ = tracon_ingest::flags::backfill_flags(&store);
-    });
-}
-
-/// The tray is the at-a-glance surface: today's numbers, open flags, and a
-/// pause switch, refreshed every 30s (menu mutation must happen on the main
-/// thread on macOS, hence run_on_main_thread).
-fn build_tray(app: &tauri::App, store: Arc<Store>) -> tauri::Result<()> {
-    let menu = tray_menu(app.handle(), &store)?;
-    let menu_store = store.clone();
-
-    // A monochrome template icon: macOS tints it for light and dark menu
-    // bars, where the full-color app icon just reads as a dark smudge.
-    let tray_icon = tauri::image::Image::from_bytes(include_bytes!("../icons/tray-template.png"))?;
-    TrayIconBuilder::with_id("tracon-tray")
-        .icon(tray_icon)
-        .icon_as_template(true)
-        .menu(&menu)
-        .show_menu_on_left_click(true)
-        .on_menu_event(move |app, event| match event.id.as_ref() {
-            "open" | "summary" | "flags" => {
-                if let Some(window) = app.get_webview_window("main") {
-                    let _ = window.show();
-                    let _ = window.set_focus();
-                }
-            }
-            "pause" => {
-                let now_paused = !menu_store.capture_paused();
-                let _ = menu_store
-                    .set_setting("capture_paused", if now_paused { "true" } else { "false" });
-            }
-            "quit" => app.exit(0),
-            _ => {}
-        })
-        .build(app)?;
-
-    let handle = app.handle().clone();
-    tauri::async_runtime::spawn(async move {
-        loop {
-            tokio::time::sleep(std::time::Duration::from_secs(30)).await;
-            let h = handle.clone();
-            let s = store.clone();
-            let _ = handle.run_on_main_thread(move || {
-                if let Some(tray) = h.tray_by_id("tracon-tray") {
-                    if let Ok(menu) = tray_menu(&h, &s) {
-                        let _ = tray.set_menu(Some(menu));
-                    }
-                }
-            });
-        }
-    });
-    Ok(())
-}
-
-fn tray_menu(app: &tauri::AppHandle, store: &Store) -> tauri::Result<Menu<tauri::Wry>> {
-    let (summary_text, flags_text) = match store.stats() {
-        Ok(stats) => (
-            format!(
-                "Today: {} sessions · {} commands",
-                stats.sessions_today, stats.commands_today
-            ),
-            format!("Open flags: {}", stats.flagged_count),
-        ),
-        Err(_) => ("Tracon".into(), "Open flags: -".into()),
-    };
-    let summary = MenuItem::with_id(app, "summary", summary_text, false, None::<&str>)?;
-    let flags = MenuItem::with_id(app, "flags", flags_text, true, None::<&str>)?;
-    let open = MenuItem::with_id(app, "open", "Open Tracon", true, None::<&str>)?;
-    let pause = tauri::menu::CheckMenuItem::with_id(
-        app,
-        "pause",
-        "Pause capture",
-        true,
-        store.capture_paused(),
-        None::<&str>,
-    )?;
-    let quit = MenuItem::with_id(app, "quit", "Quit Tracon", true, None::<&str>)?;
-    Menu::with_items(app, &[&summary, &flags, &open, &pause, &quit])
 }

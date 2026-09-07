@@ -9,7 +9,9 @@ repository.workspace = true
 [dependencies]
 anyhow.workspace = true
 axum.workspace = true
+getrandom = "0.3"
 notify.workspace = true
+percent-encoding = "2"
 reqwest.workspace = true
 time.workspace = true
 serde.workspace = true

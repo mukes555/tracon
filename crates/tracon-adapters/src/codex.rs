@@ -4,6 +4,8 @@ use serde_json::Value;
 use tracon_core::event::{AgentEvent, EventKind, EventSource};
 use tracon_core::now_iso;
 
+use crate::{sanitize_session_id, truncate};
+
 pub const AGENT_NAME: &str = "codex";
 
 /// Rollout filenames end in the session uuid:
@@ -14,11 +16,12 @@ pub fn session_id_from_path(path: &Path) -> String {
         .and_then(|s| s.to_str())
         .unwrap_or("codex-session");
     const UUID_LEN: usize = 36;
-    if stem.len() > UUID_LEN {
-        stem[stem.len() - UUID_LEN..].to_string()
-    } else {
-        stem.to_string()
-    }
+    // Char based, not byte based: a stem with multibyte text before the uuid
+    // must not panic on a byte boundary inside a character.
+    let char_count = stem.chars().count();
+    let skip = char_count.saturating_sub(UUID_LEN);
+    let tail: String = stem.chars().skip(skip).collect();
+    sanitize_session_id(&tail)
 }
 
 /// Parse one line of a Codex CLI rollout file. Like the Claude transcript
@@ -253,14 +256,6 @@ fn base_event(base: BaseEvent<'_>) -> AgentEvent {
     }
 }
 
-fn truncate(s: &str, max_chars: usize) -> String {
-    if s.chars().count() <= max_chars {
-        return s.to_string();
-    }
-    let cut: String = s.chars().take(max_chars).collect();
-    format!("{cut}...")
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -353,5 +348,79 @@ mod tests {
     fn garbage_is_ignored() {
         assert!(parse_rollout_line("nope", "s").is_empty());
         assert!(parse_rollout_line("{\"type\":\"turn_context\"}", "s").is_empty());
+    }
+
+    #[test]
+    fn session_id_from_multibyte_stem_does_not_panic() {
+        let path = Path::new(
+            "/x/rollout-2026-08-29T10-00-00-ünïcode-8f14e45f-ceea-4a67-a1b2-c3d4e5f60718.jsonl",
+        );
+        assert_eq!(
+            session_id_from_path(path),
+            "8f14e45f-ceea-4a67-a1b2-c3d4e5f60718"
+        );
+        let short = Path::new("/x/ünï.jsonl");
+        assert_eq!(session_id_from_path(short), "_n_");
+    }
+
+    #[test]
+    fn session_id_from_path_is_sanitized() {
+        let path = Path::new("/x/..%2F..%2Fetc.jsonl");
+        assert!(!session_id_from_path(path).contains('/'));
+        assert!(!session_id_from_path(path).contains('%'));
+    }
+
+    #[test]
+    fn function_call_output_becomes_tool_result() {
+        let line = json!({
+            "timestamp": "2026-08-29T13:00:01Z",
+            "type": "response_item",
+            "payload": {"type": "function_call_output", "call_id": "c1", "output": "ok"}
+        })
+        .to_string();
+
+        let events = parse_rollout_line(&line, "sess");
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].kind, EventKind::ToolResult);
+        assert_eq!(events[0].dedupe_key.as_deref(), Some("sess|out|c1"));
+
+        let without_id = json!({
+            "type": "response_item",
+            "payload": {"type": "function_call_output", "output": "ok"}
+        })
+        .to_string();
+        assert!(parse_rollout_line(&without_id, "sess").is_empty());
+    }
+
+    #[test]
+    fn array_command_forms_are_unwrapped() {
+        let script_form = json!({
+            "type": "response_item",
+            "payload": {
+                "type": "function_call",
+                "name": "shell",
+                "call_id": "c3",
+                "arguments": {"command": ["bash", "-lc", "cargo test"]}
+            }
+        })
+        .to_string();
+        assert_eq!(
+            parse_rollout_line(&script_form, "s")[0].summary.as_deref(),
+            Some("cargo test")
+        );
+
+        let argv_form = json!({
+            "type": "response_item",
+            "payload": {
+                "type": "local_shell_call",
+                "call_id": "c4",
+                "action": {"command": ["ls", "-la", "src"]}
+            }
+        })
+        .to_string();
+        assert_eq!(
+            parse_rollout_line(&argv_form, "s")[0].summary.as_deref(),
+            Some("ls -la src")
+        );
     }
 }
