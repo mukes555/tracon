@@ -4608,7 +4608,7 @@ dependencies = [
 
 [[package]]
 name = "tracon-adapters"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "serde_json",
  "tracon-core",
@@ -4616,7 +4616,7 @@ dependencies = [
 
 [[package]]
 name = "tracon-core"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "rusqlite",
@@ -4627,7 +4627,7 @@ dependencies = [
 
 [[package]]
 name = "tracon-desktop"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "serde",
@@ -4643,7 +4643,7 @@ dependencies = [
 
 [[package]]
 name = "tracon-ingest"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "axum",
