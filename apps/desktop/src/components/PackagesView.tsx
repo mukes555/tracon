@@ -3,6 +3,7 @@ import type { AgentEvent } from "../lib/types";
 // Rows open the app-wide slide-over (DetailPanel); payload fetching lives there.
 import { agentCounts, agentLabel, groupByDay, projectName, timeOf } from "../lib/format";
 import { AgentChips } from "./AgentChips";
+import { rowClass } from "./EventList";
 import { BoxIcon, InfoIcon, TypeTile } from "./icons";
 import { StatusBar } from "./StatusBar";
 
@@ -29,6 +30,7 @@ const FAMILY_LABELS: { key: Family | "all"; label: string }[] = [
 export function PackagesView(props: {
   packages: AgentEvent[];
   intelEnabled: boolean | null;
+  selectedId?: number;
   onGoSettings: () => void;
   onOpenEvent: (event: AgentEvent) => void;
 }) {
@@ -124,7 +126,7 @@ export function PackagesView(props: {
               {group.items.map((row, i) => (
                 <li key={row.event.id ?? i}>
                   <button
-                    className={row.event.flag ? "row flagged" : "row"}
+                    className={rowClass(row.event, props.selectedId)}
                     onClick={() => props.onOpenEvent(row.event)}
                   >
                     <TypeTile kind={row.event.kind} toolName={row.event.tool_name} flagged={!!row.event.flag} />

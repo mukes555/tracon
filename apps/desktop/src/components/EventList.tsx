@@ -7,10 +7,20 @@ import { InfoIcon, TypeTile } from "./icons";
 // makes a view feel heavy. Render the recent tail, reveal the rest on demand.
 const INITIAL_ROWS = 150;
 
+/** Class list for a list row: flagged tint, plus selected when it is the
+    event open in the inspector. */
+export function rowClass(event: AgentEvent, selectedId: number | undefined): string {
+  const parts = ["row"];
+  if (event.flag) parts.push("flagged");
+  if (event.id !== undefined && event.id === selectedId) parts.push("selected");
+  return parts.join(" ");
+}
+
 export function EventList(props: {
   events: AgentEvent[];
   showProject: boolean;
   advanced: boolean;
+  selectedId?: number;
   onOpen: (event: AgentEvent) => void;
 }) {
   const [limit, setLimit] = useState(INITIAL_ROWS);
@@ -32,7 +42,7 @@ export function EventList(props: {
         const isPrompt = e.kind === "prompt";
         return (
           <li key={e.id ?? i}>
-            <button className={e.flag ? "row flagged" : "row"} onClick={() => props.onOpen(e)}>
+            <button className={rowClass(e, props.selectedId)} onClick={() => props.onOpen(e)}>
               <TypeTile kind={e.kind} toolName={e.tool_name} flagged={!!e.flag} />
               <span className="row-main">
                 <span className="row-title">

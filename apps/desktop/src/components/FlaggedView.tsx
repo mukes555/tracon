@@ -5,6 +5,7 @@ import type { AgentEvent } from "../lib/types";
 // inline; payload fetching lives there now.
 import { agentCounts, agentLabel, groupByDay, projectName, severityOf, timeOf } from "../lib/format";
 import { AgentChips } from "./AgentChips";
+import { rowClass } from "./EventList";
 import { CheckIcon, FlagIcon, TypeTile } from "./icons";
 import { StatusBar } from "./StatusBar";
 
@@ -31,6 +32,7 @@ const CATEGORY_LABELS: { key: Category | "all"; label: string }[] = [
 export function FlaggedView(props: {
   flagged: AgentEvent[];
   ackedCount: number;
+  selectedId?: number;
   onChanged: () => void;
   onOpenEvent: (event: AgentEvent, acked?: boolean) => void;
 }) {
@@ -159,7 +161,7 @@ export function FlaggedView(props: {
                 return (
                   <li key={row.event.id ?? i} className="row-line">
                     <button
-                      className="row flagged"
+                      className={rowClass(row.event, props.selectedId)}
                       onClick={() => props.onOpenEvent(row.event, !isOpen)}
                     >
                       <TypeTile kind={row.event.kind} toolName={row.event.tool_name} flagged />

@@ -2,19 +2,20 @@ import { useEffect, useState } from "react";
 import { api } from "../lib/api";
 import type { AgentEvent } from "../lib/types";
 import { agentLabel, projectName, timeOf } from "../lib/format";
-import { kindIcon } from "./icons";
+import { TypeTile } from "./icons";
 
-/// Right slide-over showing one event in full. Replaces the inline row
-/// expanders everywhere: meta, raw payload, and the actions (acknowledge,
-/// read thread) live here, so lists stay lists and context is never lost.
-export function DetailPanel(props: {
+type InspectorProps = {
   event: AgentEvent;
   acked?: boolean;
   onClose: () => void;
   onReadThread: (event: AgentEvent) => void;
   onAck: (event: AgentEvent, acked: boolean) => void;
   onOpenSession: (sessionId: string) => void;
-}) {
+};
+
+/// One event in full: meta, raw payload, and the actions (acknowledge, read
+/// thread). Lists stay lists; everything about a single row lives here.
+export function EventInspector(props: InspectorProps) {
   const e = props.event;
   const [payload, setPayload] = useState<unknown>(undefined);
 
@@ -27,6 +28,80 @@ export function DetailPanel(props: {
       .catch(() => setPayload(null));
   }, [e.id]);
 
+  return (
+    <>
+      <header className="drawer-head">
+        <TypeTile kind={e.kind} toolName={e.tool_name} flagged={!!e.flag} />
+        <div className="drawer-title">
+          <h2>{e.tool_name ?? e.kind}</h2>
+          <p>
+            {projectName(e.cwd)} · <span className={`agent-chip agent-${e.agent}`}>{agentLabel(e.agent)}</span> · {timeOf(e.ts)}
+          </p>
+        </div>
+        <button className="thread-close" onClick={props.onClose} aria-label="Close">
+          ✕
+        </button>
+      </header>
+
+      {e.flag && <p className="drawer-flag">{e.flag}</p>}
+
+      {e.summary && <code className="drawer-summary">{e.summary}</code>}
+
+      <div className="drawer-actions">
+        <button className="btn-dark" onClick={() => props.onReadThread(e)}>
+          Read thread
+        </button>
+        <button className="ack-btn" onClick={() => props.onOpenSession(e.session_id)}>
+          View in timeline
+        </button>
+        {e.flag && (
+          <button className="ack-btn" onClick={() => props.onAck(e, !(props.acked ?? false))}>
+            {props.acked ? "Reopen" : "Acknowledge"}
+          </button>
+        )}
+      </div>
+
+      <div className="drawer-meta">
+        <span>session {e.session_id.slice(0, 8)}</span>
+        <span>source: {e.source}</span>
+        <span>kind: {e.kind}</span>
+        {e.cwd && <span>{e.cwd}</span>}
+      </div>
+
+      <pre className="drawer-payload">
+        {payload === undefined ? "loading..." : JSON.stringify(payload, null, 2)}
+      </pre>
+    </>
+  );
+}
+
+/// Wide windows: the inspector is a docked column on the right, always
+/// present, so opening a row never covers the list.
+export function InspectorPane(props: Omit<InspectorProps, "event"> & { event: AgentEvent | null }) {
+  return (
+    <aside className="inspector" aria-label="Inspector">
+      {props.event ? (
+        <EventInspector {...props} event={props.event} />
+      ) : (
+        <div className="inspector-empty">
+          <img
+            className="inspector-mascot"
+            src="/mascot-avatar.png"
+            alt=""
+            onError={(ev) => {
+              ev.currentTarget.hidden = true;
+            }}
+          />
+          <p>Select an event to inspect it</p>
+          <p className="muted">Commands, edits, installs, and flags open here.</p>
+        </div>
+      )}
+    </aside>
+  );
+}
+
+/// Narrow windows: the same inspector as a slide-over with a backdrop.
+export function DetailPanel(props: InspectorProps) {
   useEffect(() => {
     const onKey = (ev: KeyboardEvent) => {
       if (ev.key === "Escape") props.onClose();
@@ -38,47 +113,7 @@ export function DetailPanel(props: {
   return (
     <div className="drawer-backdrop" onClick={props.onClose}>
       <aside className="drawer" role="dialog" aria-label="Event detail" onClick={(ev) => ev.stopPropagation()}>
-        <header className="drawer-head">
-          <span className="drawer-kind">{kindIcon(e.kind, e.tool_name)}</span>
-          <div className="drawer-title">
-            <h2>{e.tool_name ?? e.kind}</h2>
-            <p>
-              {projectName(e.cwd)} · <span className={`agent-chip agent-${e.agent}`}>{agentLabel(e.agent)}</span> · {timeOf(e.ts)}
-            </p>
-          </div>
-          <button className="thread-close" onClick={props.onClose} aria-label="Close">
-            ✕
-          </button>
-        </header>
-
-        {e.flag && <p className="drawer-flag">{e.flag}</p>}
-
-        {e.summary && <code className="drawer-summary">{e.summary}</code>}
-
-        <div className="drawer-actions">
-          <button className="btn-dark" onClick={() => props.onReadThread(e)}>
-            Read thread
-          </button>
-          <button className="ack-btn" onClick={() => props.onOpenSession(e.session_id)}>
-            View in timeline
-          </button>
-          {e.flag && (
-            <button className="ack-btn" onClick={() => props.onAck(e, !(props.acked ?? false))}>
-              {props.acked ? "Reopen" : "Acknowledge"}
-            </button>
-          )}
-        </div>
-
-        <div className="drawer-meta">
-          <span>session {e.session_id.slice(0, 8)}</span>
-          <span>source: {e.source}</span>
-          <span>kind: {e.kind}</span>
-          {e.cwd && <span>{e.cwd}</span>}
-        </div>
-
-        <pre className="drawer-payload">
-          {payload === undefined ? "loading..." : JSON.stringify(payload, null, 2)}
-        </pre>
+        <EventInspector {...props} />
       </aside>
     </div>
   );

@@ -490,7 +490,9 @@ code {
 
 .two-col {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  /* minmax(0) lets a column shrink below its nowrap mono rows when the
+     inspector column takes width. */
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 16px;
 }
 
@@ -1090,6 +1092,13 @@ code {
 
 .row.flagged {
   background: var(--bad-soft);
+}
+
+/* The row currently open in the inspector. */
+.row.selected,
+.row.flagged.selected {
+  background: var(--accent-soft);
+  box-shadow: inset 3px 0 0 var(--accent);
 }
 
 .row.flagged:hover {
@@ -2302,8 +2311,13 @@ code {
 
 .drawer-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   margin-bottom: 16px;
+}
+
+.drawer-actions button {
+  white-space: nowrap;
 }
 
 .drawer-meta {
@@ -2327,6 +2341,40 @@ code {
   line-height: 1.55;
   flex: 1;
   min-height: 120px;
+}
+
+/* ---------- docked inspector (wide windows) ---------- */
+
+.inspector {
+  width: 340px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 18px 20px;
+  overflow-y: auto;
+  background: var(--surface);
+  border-left: 1px solid var(--line-soft);
+}
+
+.inspector-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  text-align: center;
+  color: var(--ink-2);
+  font-size: 13px;
+  padding: 0 12px;
+}
+
+.inspector-mascot {
+  width: 96px;
+  height: 96px;
+  object-fit: contain;
+  margin-bottom: 8px;
+  opacity: 0.9;
 }
 
 /* ---------- misc ---------- */

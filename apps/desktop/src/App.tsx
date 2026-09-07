@@ -3,6 +3,7 @@ import "./App.css";
 import { api } from "./lib/api";
 import { agentLabel, matchesKindFilter, matchesQuery, projectName, relTime } from "./lib/format";
 import { applyTheme, normalizeTheme, THEME_KEY } from "./lib/theme";
+import { useMediaQuery } from "./lib/useMediaQuery";
 import type {
   AgentEvent,
   CaptureStatus,
@@ -14,7 +15,7 @@ import type {
   View,
 } from "./lib/types";
 import { CommandPalette } from "./components/CommandPalette";
-import { DetailPanel } from "./components/DetailPanel";
+import { DetailPanel, InspectorPane } from "./components/DetailPanel";
 import { EventList } from "./components/EventList";
 import { FilterBar } from "./components/FilterBar";
 import { FlaggedView } from "./components/FlaggedView";
@@ -32,6 +33,9 @@ const POLL_MS = 3000;
 // Simple hides the operator details (raw commands, ids, rates); Advanced
 // shows them everywhere. Persisted locally like a native app preference.
 const ADVANCED_KEY = "tracon-advanced";
+// Past this width the event detail docks as a right column instead of a
+// slide-over, so the list stays visible while inspecting.
+const INSPECTOR_QUERY = "(min-width: 1280px)";
 
 function App() {
   const [view, setView] = useState<View>("overview");
@@ -50,6 +54,7 @@ function App() {
   const [kind, setKind] = useState<KindFilter>("all");
   const [exportNote, setExportNote] = useState<string | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const wide = useMediaQuery(INSPECTOR_QUERY);
   const [updatedAt, setUpdatedAt] = useState<string | null>(null);
   const [advanced, setAdvancedState] = useState(() => {
     try {
@@ -234,7 +239,7 @@ function App() {
           onClose={() => setPaletteOpen(false)}
         />
       )}
-      {detail && (
+      {detail && !wide && (
         <DetailPanel
           event={detail.event}
           acked={detail.acked}
@@ -327,6 +332,7 @@ function App() {
                   events={filteredEvents}
                   showProject={false}
                   advanced={advanced}
+                  selectedId={detail?.event.id}
                   onOpen={openDetail}
                 />
                 <StatusBar
@@ -349,6 +355,7 @@ function App() {
         <PackagesView
           packages={packages}
           intelEnabled={intelEnabled}
+          selectedId={detail?.event.id}
           onGoSettings={goSettings}
           onOpenEvent={openDetail}
         />
@@ -358,6 +365,7 @@ function App() {
         <FlaggedView
           flagged={flagged}
           ackedCount={stats?.acked_count ?? 0}
+          selectedId={detail?.event.id}
           onOpenEvent={openDetail}
           onChanged={flagsChanged}
         />
@@ -365,6 +373,16 @@ function App() {
 
       {view === "settings" && <SettingsView />}
       </div>
+      {wide && (
+        <InspectorPane
+          event={detail?.event ?? null}
+          acked={detail?.acked}
+          onClose={closeDetail}
+          onReadThread={openThread}
+          onAck={ackFromPanel}
+          onOpenSession={openSessionTimeline}
+        />
+      )}
     </div>
   );
 }
