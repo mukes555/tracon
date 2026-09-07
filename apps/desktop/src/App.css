@@ -723,6 +723,13 @@ code {
   min-height: 0;
 }
 
+/* Below about 1000px the session list gives the timeline room to breathe. */
+@media (max-width: 1000px) {
+  .sessions {
+    width: 248px;
+  }
+}
+
 /* Quiet chrome: the sidebar separates from the timeline by surface shade
    alone, no border. Solid white; a translucent panel over the canvas read
    as muddy gray. */
@@ -869,10 +876,16 @@ code {
 
 .session-header {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 16px;
+  gap: 10px 16px;
   margin-bottom: 14px;
+}
+
+.session-header > div:first-child {
+  min-width: 0;
+  flex: 1 1 260px;
 }
 
 .session-header h1 {
@@ -2515,6 +2528,7 @@ code {
 /* Session header: the transcript-recovery note is a chip, not a banner. */
 .gap-chip {
   display: inline-block;
+  white-space: nowrap;
   margin-left: 8px;
   padding: 1px 8px;
   border-radius: 99px;
