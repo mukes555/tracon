@@ -1,8 +1,12 @@
 <div align="center">
 
-<img src="docs/media/banner.png" width="800" alt="Tracon: a quokka in sunglasses holding a coffee mug next to the wordmark and the tagline Flight recorder for AI coding agents" />
+<img src="docs/media/banner.png" width="760" alt="Tracon: a quokka in sunglasses holding a coffee mug, next to the wordmark and the tagline Flight recorder for AI coding agents" />
 
-See everything Claude Code, Codex, Cursor, and Gemini CLI do on your machine: every command, every file edit, every package install, with dangerous actions flagged for review. Local-only, open source, never in the agent's way.
+<br />
+
+**See everything Claude Code, Codex, Cursor, and Gemini CLI do on your machine.**<br />
+Every command, every file edit, every package install, with the dangerous ones flagged for review.<br />
+Local-only. Open source. Never in the agent's way.
 
 [![CI](https://github.com/mukes555/tracon/actions/workflows/ci.yml/badge.svg)](https://github.com/mukes555/tracon/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/mukes555/tracon?include_prereleases)](https://github.com/mukes555/tracon/releases)
@@ -10,24 +14,76 @@ See everything Claude Code, Codex, Cursor, and Gemini CLI do on your machine: ev
 ![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows-lightgrey)
 [![Built with Tauri](https://img.shields.io/badge/built%20with-Tauri%202-24C8DB)](https://tauri.app)
 
-<img src="docs/media/demo.gif" width="800" alt="Tracon demo: the Overview dashboard, a session timeline, a flagged rm -rf command opening in a detail panel, and the agent conversation behind it" />
+<br />
+
+<img src="docs/media/demo.gif" width="860" alt="A tour of Tracon: the Overview, the Live page with three agents streaming, a session timeline with a flagged command open in the inspector, the conversation behind it, the Flagged inbox grouped by severity, the package ledger, and the command palette" />
+
+<sub>Everything shown here is sample data.</sub>
 
 </div>
 
 ## Why Tracon
 
-Developers run AI coding agents in auto-accept mode all day. Packages get installed, shell commands get executed, files get rewritten, and nobody reviews any of it. Tracon is the audit trail for that new reality: an AI agent activity monitor that records what your agents actually did and makes it reviewable in seconds.
+Developers run AI coding agents in auto-accept mode all day. Packages get installed, shell commands get executed, files get rewritten, and nobody reviews any of it. Tracon is the audit trail for that new reality: an activity recorder for AI coding agents that captures what they actually did and makes it reviewable in seconds.
 
 > TRACON is the FAA's Terminal Radar Approach Control: the radar room that tracks every aircraft moving through an airspace. This Tracon tracks every agent moving through your machine.
 
-## Features
+## A tour
 
-- **Overview dashboard.** Live agents, today's vitals, a 14 day activity chart, and a flag inbox you can acknowledge without leaving the page.
-- **Session timelines.** Every Claude Code, Codex, Cursor, and Gemini session with its full event ledger: commands, file edits, package installs, prompts.
-- **Danger flags.** Recursive deletes, pipe-to-shell installs, credential access, force pushes, and permission bypasses are flagged as they happen, with optional system notifications. Tracon flags; it never blocks.
-- **Conversation reader.** Open the actual chat behind any event, read straight from the agent's own transcript on disk, read-only.
-- **Package watch.** Everything your agents installed across npm, pnpm, pip, cargo, brew, and friends, plus apps that appeared on the machine. Opt-in threat intelligence checks names against osv.dev.
-- **Everything searchable.** A command palette (Cmd+K) over all recorded history.
+### Overview: what happened today
+
+Live agents at the top, today's numbers, a 14 day activity chart, and a flag inbox you can clear without leaving the page. The right column is an inspector: it shows today's summary and capture health until you click something, then the thing you clicked.
+
+<img src="docs/media/overview.png" width="860" alt="The Overview page: three live sessions, today's counts, an activity chart, the flag inbox, recent packages, and the inspector column" />
+
+### Live: the security room
+
+One monitor per active session, streaming as the agent works. Each card shows the task the agent was given, the subagents it spawned, and its last few actions, with flagged commands lit in red. Jump to the conversation or the full timeline from the card.
+
+<img src="docs/media/live.png" width="860" alt="The Live page: three session monitors with dark terminal panes streaming recent commands" />
+
+### Timeline: every session, every event
+
+Sessions on the left, grouped by day and filterable by agent. The selected session's ledger on the right: prompts, commands, file edits, and installs in order, each with a colored type tile. Click a row and the inspector shows the command, why it was flagged, and the raw payload. Arrow keys step through rows, `A` acknowledges, `Esc` closes.
+
+<img src="docs/media/timeline.png" width="860" alt="The Timeline page: a session list, the event ledger with a flagged curl pipe to shell selected, and the inspector explaining the flag" />
+
+### Conversation: the chat behind the event
+
+Open the actual conversation behind any event, read straight from the agent's own transcript on disk. Read-only, always.
+
+<img src="docs/media/conversation.png" width="860" alt="The conversation reader over the timeline, showing the user prompt and the agent's replies" />
+
+### Flagged: an inbox, not a graveyard
+
+Open flags grouped by severity, critical first. Acknowledge one with a click or the whole group at once, with undo. Recursive deletes, pipe-to-shell installs, credential reads, force pushes, permission bypasses, and known-vulnerable packages are flagged as they happen, with optional system notifications. Tracon flags; it never blocks.
+
+<img src="docs/media/flagged.png" width="860" alt="The Flagged page: open flags grouped into Critical and Warning, each row with an acknowledge button, and the inspector explaining a credential file read" />
+
+### Packages: everything that got installed
+
+Every install across npm, pnpm, pip, cargo, brew, and friends, plus apps that appeared on the machine. Opt-in threat intelligence checks package names against osv.dev and flags known vulnerabilities and suspiciously fresh publishes.
+
+<img src="docs/media/packages.png" width="860" alt="The Packages page: installs grouped by day with the manager badge, package names, and a known vulnerability flag" />
+
+### Search everything
+
+`Cmd+K` opens a palette over all recorded history. Type a command fragment, a project, or a flag reason.
+
+<img src="docs/media/palette.png" width="860" alt="The command palette searching for rm -rf across every session" />
+
+### Keyboard
+
+| Keys | Action |
+| --- | --- |
+| `Cmd+K` | Search everything, or type `>` for commands |
+| `1` to `6` | Switch pages |
+| `Up` `Down` or `j` `k` | Move through rows |
+| `Enter` | Open the row in the inspector |
+| `A` | Acknowledge the open flag and move to the next |
+| `Esc` | Close the inspector |
+
+The **Simple** and **Advanced** switch in the top bar hides or shows operator details: event sources, session ids, raw payloads.
 
 ## How capture works
 
@@ -78,6 +134,8 @@ integrations/           hook configs and plugins for each agent
 Events flow in through hooks (an axum server on `localhost:48620`) or read-only log tailing, are normalized to one event shape, deduplicated, and stored locally. The UI polls a cheap change token and reads through a dedicated connection pool, so heavy capture never blocks the interface.
 
 ## Built in the open, by the thing it audits
+
+<img src="docs/media/quokka-live.png" width="360" align="right" alt="The Tracon quokka at a desk in front of six monitors full of code" />
 
 Tracon is written largely by AI coding agents (Claude Code), with human direction and review, and Tracon recorded its own construction: the flag inbox caught the build's own `rm -rf node_modules`, and the Live page's first real test was watching the session that built it. We think an agent auditor should be honest about being agent-built. Every change passes the same gate (rustfmt, clippy with warnings denied, the full test suite, a TypeScript build) and lands through the CI in this repo.
 
