@@ -2,16 +2,17 @@ import { useEffect, useState } from "react";
 import { openPath, revealItemInDir } from "@tauri-apps/plugin-opener";
 import { api } from "../lib/api";
 import { ingestFailureText } from "../lib/captureSources";
+import { relTime } from "../lib/format";
 import { applyTheme, normalizeTheme, THEME_KEY } from "../lib/theme";
-import type { CaptureStatus, ThemeSetting } from "../lib/types";
+import type { CaptureStatus, ThemeSetting, UpdateStatus } from "../lib/types";
 import { useTransientNote } from "../lib/useTransientNote";
-import type { UpdateStatus } from "../lib/types";
-import { UpdatesCard } from "./UpdatesCard";
 import { ConfirmButton } from "./ConfirmButton";
+import { SettingRow } from "./SettingRow";
+import { Switch } from "./Switch";
 
 const THEMES: { value: ThemeSetting; label: string }[] = [
-  { value: "dark", label: "Dark" },
   { value: "light", label: "Light" },
+  { value: "dark", label: "Dark" },
   { value: "system", label: "System" },
 ];
 
@@ -25,12 +26,13 @@ export function SettingsView(props: {
   onSetUpdateCheck: (enabled: boolean) => Promise<void>;
   onCheckUpdate: () => Promise<UpdateStatus>;
 }) {
-  const [theme, setTheme] = useState<ThemeSetting>("dark");
+  const [theme, setTheme] = useState<ThemeSetting>("light");
   const [intel, setIntel] = useState<boolean | null>(null);
   const [notify, setNotify] = useState(true);
   const [retention, setRetention] = useState("90");
   const [dataDir, setDataDir] = useState("");
   const [version, setVersion] = useState("");
+  const [checking, setChecking] = useState(false);
   const { note, show } = useTransientNote();
 
   useEffect(() => {
@@ -85,12 +87,33 @@ export function SettingsView(props: {
 
   const saveRetention = () => {
     const days = parseInt(retention, 10);
-    if (!Number.isFinite(days) || days < 1) return;
+    if (!Number.isFinite(days) || days < 1) {
+      show("Enter a number of days", "bad");
+      return;
+    }
     save(api.setSetting("retention_days", String(days)), `Keeping ${days} days of history`);
   };
 
-  const setPaused = (paused: boolean) => {
-    save(props.onSetPaused(paused), paused ? "Capture paused" : "Capture resumed");
+  const toggleUpdateCheck = async () => {
+    const next = !(props.update?.enabled ?? false);
+    try {
+      await props.onSetUpdateCheck(next);
+      show(next ? "Daily update check on" : "Daily update check off");
+    } catch {
+      show("Could not save", "bad");
+    }
+  };
+
+  const checkUpdate = async () => {
+    setChecking(true);
+    try {
+      const next = await props.onCheckUpdate();
+      show(next.available ? `Tracon ${next.latest} is available` : "You are on the latest version");
+    } catch {
+      show("Could not reach GitHub", "bad");
+    } finally {
+      setChecking(false);
+    }
   };
 
   const revealLog = async () => {
@@ -105,139 +128,162 @@ export function SettingsView(props: {
   };
 
   const ingestFailure = ingestFailureText(props.capture);
+  const update = props.update;
 
   return (
-    <main className="view">
+    <main className="view settings">
       <header className="view-head">
         <h1>Settings</h1>
-        {note && <span className={note.tone === "bad" ? "saved-note bad" : "saved-note"}>{note.text}</span>}
+        {note && (
+          <span className={note.tone === "bad" ? "saved-note bad" : "saved-note"}>{note.text}</span>
+        )}
       </header>
 
       <section className="card">
         <h3>Capture</h3>
-        <div className="seg">
-          <button
-            className={props.paused ? "seg-item" : "seg-item active"}
-            onClick={() => setPaused(false)}
-          >
-            Recording
-          </button>
-          <button
-            className={props.paused ? "seg-item active" : "seg-item"}
-            onClick={() => setPaused(true)}
-          >
-            Paused
-          </button>
-        </div>
-        <p className="muted">
-          While paused, hooks and transcript tailing are ignored and nothing is
-          written. Agents keep running; Tracon just stops watching.
-        </p>
+        <SettingRow
+          label="Recording"
+          hint="While paused, hooks and transcript tailing are ignored and nothing is written. Agents keep running."
+          control={
+            <Switch
+              checked={!props.paused}
+              label="Recording"
+              onChange={() =>
+                save(
+                  props.onSetPaused(!props.paused),
+                  props.paused ? "Capture resumed" : "Capture paused",
+                )
+              }
+            />
+          }
+        />
+        <SettingRow
+          label="Flag notifications"
+          hint="A system notification the moment a recursive delete, pipe to shell, credential access, or risky package lands."
+          control={<Switch checked={notify} label="Flag notifications" onChange={toggleNotify} />}
+        />
+        <SettingRow
+          label="Threat intelligence"
+          hint="Checks package names, and nothing else, against osv.dev and registry.npmjs.org. Off by default."
+          control={
+            <Switch
+              checked={intel ?? false}
+              label="Threat intelligence"
+              disabled={intel === null}
+              onChange={toggleIntel}
+            />
+          }
+        />
         {ingestFailure && <p className="ingest-error">{ingestFailure}</p>}
       </section>
 
-      <UpdatesCard
-        status={props.update}
-        onSetEnabled={props.onSetUpdateCheck}
-        onCheckNow={props.onCheckUpdate}
-        onNote={show}
-      />
-
       <section className="card">
         <h3>Appearance</h3>
-        <div className="seg">
-          {THEMES.map((t) => (
-            <button
-              key={t.value}
-              className={theme === t.value ? "seg-item active" : "seg-item"}
-              onClick={() => chooseTheme(t.value)}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
-        <p className="muted">Light is Tracon's native look. System follows your OS.</p>
+        <SettingRow
+          label="Theme"
+          hint="Light is Tracon's native look. System follows your OS."
+          control={
+            <div className="seg">
+              {THEMES.map((t) => (
+                <button
+                  key={t.value}
+                  className={theme === t.value ? "seg-item active" : "seg-item"}
+                  onClick={() => chooseTheme(t.value)}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          }
+        />
       </section>
 
       <section className="card">
-        <h3>Notifications</h3>
-        <label className="intel-toggle">
-          <input type="checkbox" checked={notify} onChange={toggleNotify} />
-          <span>Notify me when an agent action gets flagged</span>
-        </label>
-        <p className="muted">
-          A system notification the moment a recursive delete, pipe-to-shell,
-          credential access, or risky package lands, even while Tracon sits in
-          the tray.
-        </p>
-      </section>
-
-      <section className="card">
-        <h3>Threat intelligence</h3>
-        <label className="intel-toggle">
-          <input
-            type="checkbox"
-            checked={intel ?? false}
-            onChange={toggleIntel}
-            disabled={intel === null}
-          />
-          <span>
-            Check installed packages against public threat data <em>(off by default)</em>
-          </span>
-        </label>
-        <p className="muted">
-          When on, package names (and nothing else) are checked against osv.dev for
-          known vulnerabilities and registry.npmjs.org for suspiciously fresh
-          versions. This is Tracon's only network feature; your audit data never
-          leaves this machine.
-        </p>
-      </section>
-
-      <section className="card">
-        <h3>History</h3>
-        <div className="inline-field">
-          <input
-            className="num"
-            type="number"
-            min={1}
-            value={retention}
-            onChange={(e) => setRetention(e.target.value)}
-          />
-          <span>days of events kept, older ones are purged</span>
-          <button className="btn-dark" onClick={saveRetention}>
-            Save
-          </button>
-        </div>
-        <div className="inline-field" style={{ marginTop: 12 }}>
-          <button
-            className="btn-dark"
-            onClick={() => save(api.importFullHistory(), "Importing full history in the background")}
-          >
-            Import full history
-          </button>
-          <span>
-            scan ALL Claude and Codex session files, not just the last 3 days
-          </span>
-        </div>
+        <h3>Updates</h3>
+        <SettingRow
+          label="Daily check"
+          hint="Asks GitHub for the latest release number and nothing else. No data about you or your machine is sent."
+          control={
+            <Switch
+              checked={update?.enabled ?? false}
+              label="Daily update check"
+              onChange={toggleUpdateCheck}
+            />
+          }
+        />
+        <SettingRow
+          label="Version"
+          hint={
+            update?.checked_at
+              ? `Last checked ${relTime(update.checked_at)}`
+              : "Never checked for updates"
+          }
+          control={
+            <div className="control-pair">
+              <span className="muted">
+                {version || "..."}
+                {update?.available && update.latest ? ` · ${update.latest} available` : ""}
+              </span>
+              <button className="btn-quiet" onClick={checkUpdate} disabled={checking}>
+                {checking ? "Checking" : "Check now"}
+              </button>
+            </div>
+          }
+        />
       </section>
 
       <section className="card">
         <h3>Data</h3>
-        <div className="inline-field">
-          <ConfirmButton
-            label="Delete everything"
-            confirmLabel={`Really delete ${props.eventCount.toLocaleString()} events?`}
-            onConfirm={props.onDeleteAll}
-          />
-          <span>removes every recorded session, event, and flag from this machine</span>
-        </div>
+        <SettingRow
+          label="History"
+          hint="Older events are purged automatically."
+          control={
+            <div className="control-pair">
+              <input
+                className="num"
+                type="number"
+                min={1}
+                aria-label="Days of history to keep"
+                value={retention}
+                onChange={(e) => setRetention(e.target.value)}
+              />
+              <span className="muted">days</span>
+              <button className="btn-quiet" onClick={saveRetention}>
+                Save
+              </button>
+            </div>
+          }
+        />
+        <SettingRow
+          label="Import full history"
+          hint="Scans every Claude and Codex session file, not just the last 3 days."
+          control={
+            <button
+              className="btn-quiet"
+              onClick={() =>
+                save(api.importFullHistory(), "Importing full history in the background")
+              }
+            >
+              Import
+            </button>
+          }
+        />
+        <SettingRow
+          label="Delete everything"
+          hint="Removes every recorded session, event, and flag from this machine."
+          control={
+            <ConfirmButton
+              label="Delete"
+              confirmLabel={`Really delete ${props.eventCount.toLocaleString()} events?`}
+              onConfirm={props.onDeleteAll}
+            />
+          }
+        />
       </section>
 
       <section className="card">
         <h3>About</h3>
         <dl className="about">
-          <dt>Version</dt>
-          <dd>{version || "..."}</dd>
           <dt>Data location</dt>
           <dd>
             <code>{dataDir || "..."}</code>

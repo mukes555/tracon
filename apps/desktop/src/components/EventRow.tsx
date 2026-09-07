@@ -74,7 +74,7 @@ export const EventRow = memo(function EventRow(props: {
   if (!onAck) return <li role="none">{row}</li>;
   const label = props.acked ? "Reopen" : "Acknowledge";
   return (
-    <li role="none" className="row-line">
+    <li role="none" className={e.flag ? "row-line flagged" : "row-line"}>
       {row}
       <button
         className={props.acked ? "row-action-btn" : "row-action-btn ack"}

@@ -1,5 +1,4 @@
-import type { AgentEvent, CaptureStatus, SessionSummary, Stats, View } from "../lib/types";
-import { CAPTURE_SOURCES, sourceEventCount } from "../lib/captureSources";
+import type { AgentEvent, SessionSummary, View } from "../lib/types";
 import { agentLabel, durationLabel, hasTranscript, projectName, relTime } from "../lib/format";
 import { ConfirmButton } from "./ConfirmButton";
 import { EventInspector, type EventInspectorProps } from "./EventInspector";
@@ -8,21 +7,15 @@ export type InspectorContext = {
   view: View;
   session: SessionSummary | null;
   sessionEvents: AgentEvent[];
-  stats: Stats | null;
-  capture: CaptureStatus | null;
-  liveCount: number;
-  updatedAt: string | null;
   onOpenEvent: (event: AgentEvent) => void;
-  onNavigate: (view: View) => void;
   onReadSession: (session: SessionSummary) => void;
   onExportSession: () => void;
   onDeleteSession: (sessionId: string) => void;
 };
 
-/// Wide windows: the docked right column. With an event selected it is the
-/// event inspector; otherwise it carries the context of the current view,
-/// the open session on Timeline or today's numbers everywhere else, so the
-/// space is never blank.
+/// The docked right column on wide windows, and only on the views that have
+/// a list to inspect. With an event selected it is the event inspector; on
+/// Timeline it falls back to the open session; otherwise it waits quietly.
 export function InspectorPane(
   props: Omit<EventInspectorProps, "event"> & { event: AgentEvent | null; context: InspectorContext },
 ) {
@@ -35,9 +28,30 @@ export function InspectorPane(
       ) : sessionOpen && context.session ? (
         <SessionCard {...context} session={context.session} />
       ) : (
-        <TodayCard {...context} />
+        <EmptyInspector />
       )}
     </aside>
+  );
+}
+
+function EmptyInspector() {
+  return (
+    <div className="insp-empty">
+      <img className="insp-empty-mascot" src="/mascot/inspector.png" alt="" />
+      <p>Select a row to inspect it</p>
+      <ul className="insp-keys">
+        <li>
+          <kbd>↑</kbd>
+          <kbd>↓</kbd> move
+        </li>
+        <li>
+          <kbd>A</kbd> acknowledge
+        </li>
+        <li>
+          <kbd>⌘K</kbd> search
+        </li>
+      </ul>
+    </div>
   );
 }
 
@@ -114,78 +128,6 @@ function SessionCard(props: InspectorContext & { session: SessionSummary }) {
           </ul>
         </section>
       )}
-
-      <p className="insp-hint">Select an event to inspect it.</p>
-    </>
-  );
-}
-
-function TodayCard(props: InspectorContext) {
-  const st = props.stats;
-  const n = (value: number | undefined) => value?.toLocaleString() ?? "-";
-  return (
-    <>
-      <span className="mascot-wrap inspector-mascot-wrap">
-        <img className="inspector-mascot" src="/mascot/inspector.png" alt="" />
-      </span>
-      <section className="insp-section">
-        <h3>Today</h3>
-        <dl className="insp-stats">
-          <button onClick={() => props.onNavigate("timeline")}>
-            <dd>{n(st?.sessions_today)}</dd>
-            <dt>sessions</dt>
-          </button>
-          <button onClick={() => props.onNavigate("timeline")}>
-            <dd>{n(st?.commands_today)}</dd>
-            <dt>commands</dt>
-          </button>
-          <button onClick={() => props.onNavigate("packages")}>
-            <dd>{n(st?.packages_today)}</dd>
-            <dt>installs</dt>
-          </button>
-        </dl>
-        <ul className="insp-kv">
-          <li>
-            <span>Agents live now</span>
-            <b>{props.liveCount}</b>
-          </li>
-          <li className={st && st.flagged_count > 0 ? "bad" : ""}>
-            <span>Open flags</span>
-            <b>{n(st?.flagged_count)}</b>
-          </li>
-          <li>
-            <span>Acknowledged</span>
-            <b>{n(st?.acked_count)}</b>
-          </li>
-        </ul>
-      </section>
-
-      {props.capture && (
-        <section className="insp-section">
-          <h3>Capture</h3>
-          <ul className="insp-kv">
-            {CAPTURE_SOURCES.map((s) => {
-              const live = sourceEventCount(props.capture, s) > 0;
-              return (
-                <li key={s.key}>
-                  <span>
-                    <span className={live ? "dot ok" : "dot"} /> {s.label}
-                  </span>
-                  <b className="muted">{live ? "live" : "off"}</b>
-                </li>
-              );
-            })}
-          </ul>
-          <button className="linkish" onClick={() => props.onNavigate("overview")}>
-            set up capture
-          </button>
-        </section>
-      )}
-
-      <p className="insp-hint">
-        Select an event to inspect it.
-        {props.updatedAt && <> Updated {relTime(props.updatedAt)}.</>}
-      </p>
     </>
   );
 }

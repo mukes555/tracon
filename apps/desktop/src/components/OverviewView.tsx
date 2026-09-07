@@ -81,7 +81,13 @@ export function OverviewView(props: {
       </div>
 
       <section className="card">
-        <h3>Activity · last 14 days</h3>
+        <div className="card-head">
+          <h3>Activity · last 14 days</h3>
+          <span className="chart-legend">
+            <i className="swatch events" /> events
+            <i className="swatch flagged" /> flagged
+          </span>
+        </div>
         <ActivityBars days={props.days} />
       </section>
 

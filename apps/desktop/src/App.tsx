@@ -29,6 +29,9 @@ const ADVANCED_KEY = "tracon-advanced";
 // Past this width the event detail docks as a right column instead of a
 // slide-over, so the list stays visible while inspecting.
 const INSPECTOR_QUERY = "(min-width: 1280px)";
+// Only the list views have something to inspect. Overview, Live and
+// Settings own their full width instead of carrying an empty column.
+const INSPECTOR_VIEWS: View[] = ["timeline", "packages", "flagged"];
 const VIEW_KEYS: View[] = ["overview", "live", "timeline", "packages", "flagged", "settings"];
 const EXPORT_NOTE_MS = 6000;
 
@@ -287,12 +290,7 @@ function App() {
       view,
       session: selectedSession,
       sessionEvents: data.events,
-      stats: data.stats,
-      capture: data.capture,
-      liveCount: data.live.length,
-      updatedAt: data.updatedAt,
       onOpenEvent: openDetail,
-      onNavigate: navigate,
       onReadSession: openSessionThread,
       onExportSession: exportSelected,
       onDeleteSession: deleteSession,
@@ -301,12 +299,7 @@ function App() {
       view,
       selectedSession,
       data.events,
-      data.stats,
-      data.capture,
-      data.live.length,
-      data.updatedAt,
       openDetail,
-      navigate,
       openSessionThread,
       exportSelected,
       deleteSession,
@@ -472,7 +465,7 @@ function App() {
         />
       )}
       </div>
-      {wide && (
+      {wide && INSPECTOR_VIEWS.includes(view) && (
         <InspectorPane
           event={detail?.event ?? null}
           acked={detail?.acked}

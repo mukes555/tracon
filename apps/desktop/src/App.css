@@ -211,27 +211,45 @@ code {
   font-weight: 500;
 }
 
+/* An update is news, not an alarm: a quiet line with a green dot, so it
+   never competes with a paused-capture or lost-contact warning. */
 .banner.info {
-  background: var(--accent-soft);
-  color: var(--accent-ink);
-  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
-  font-weight: 500;
+  background: var(--surface);
+  color: var(--ink-2);
+  border: 1px solid var(--line-soft);
+  padding: 5px 12px;
+  font-size: 12.5px;
+}
+
+.banner.info::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex-shrink: 0;
+}
+
+.banner.info span {
+  flex: 1;
+  min-width: 0;
 }
 
 .banner.info code {
   font-family: var(--mono);
   font-size: 12px;
+  color: var(--ink);
 }
 
 .banner.info .banner-btn {
-  background: var(--accent-ink);
+  background: transparent;
+  color: var(--accent-ink);
+  border: 1px solid var(--line);
+  font-weight: 600;
 }
 
-.update-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-top: 10px;
+.banner.info .banner-btn:hover {
+  border-color: var(--accent-ink);
 }
 
 .banner-btn {
@@ -364,20 +382,17 @@ code {
   user-select: none;
 }
 
-/* App-icon treatment: the mark lives in a small flat green tile; the
-   mascot avatar, when present, sits over it. */
+/* The app icon itself, so the window and the dock agree. The T mark
+   underneath only shows if the image fails to load. */
 .brand-mark {
   position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 34px;
-  height: 34px;
-  border-radius: 10px;
-  background: var(--accent);
-  color: var(--accent-contrast);
+  width: 30px;
+  height: 30px;
+  color: var(--ink);
   flex-shrink: 0;
-  overflow: hidden;
 }
 
 .brand-avatar {
@@ -385,7 +400,7 @@ code {
   inset: 0;
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
 }
 
 .brand-text {
@@ -406,7 +421,6 @@ code {
   color: var(--warn);
   font-weight: 600;
 }
-
 
 
 .kbd {
@@ -604,11 +618,6 @@ code {
    hairline dividers. Color appears only when it means something (flagged). */
 
 
-
-
-
-
-
 /* Today's numbers as one quiet line of pills. */
 .today-strip {
   display: flex;
@@ -684,8 +693,44 @@ code {
   bottom: 0;
   left: 0;
   right: 0;
-  background: var(--bad-soft);
-  border-top: 2px solid var(--bad);
+  background: var(--bad);
+  border-radius: 0 0 4px 4px;
+  /* Flagged events are a fraction of a percent of the total, so a purely
+     proportional slice renders as a hairline. */
+  min-height: 5px;
+}
+
+.chart-legend {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--ink-3);
+}
+
+.chart-legend .swatch {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  display: inline-block;
+}
+
+.chart-legend .swatch.events {
+  background: var(--accent);
+}
+
+.chart-legend .swatch.flagged {
+  background: var(--bad);
+}
+
+.chart-legend .swatch.flagged {
+  margin-left: 6px;
+}
+
+/* Settings reads as a column of decisions, not a wall: cap the measure so
+   the label and its control stay in one eyeful. */
+.view.settings .card {
+  max-width: 820px;
 }
 
 .bar-day {
@@ -695,16 +740,6 @@ code {
 }
 
 /* Dashboard flag inbox: triage without leaving home. */
-
-
-
-
-
-
-
-
-
-
 
 
 .dot {
@@ -820,7 +855,6 @@ code {
   padding: 12px 26px 24px;
   min-width: 0;
 }
-
 
 
 .session-group ul {
@@ -1076,6 +1110,22 @@ code {
   align-items: center;
   gap: 6px;
   padding-right: 8px;
+}
+
+/* The tint belongs to the whole line. On the button alone it stops short of
+   the acknowledge control and leaves a seam down the list. */
+.row-line.flagged {
+  background: var(--bad-soft);
+  border-radius: 9px;
+}
+
+.row-line.flagged .row.flagged,
+.row-line.flagged .row.flagged:hover {
+  background: transparent;
+}
+
+.row-line.flagged:hover {
+  background: color-mix(in srgb, var(--bad) 13%, var(--surface));
 }
 
 .row {
@@ -1359,28 +1409,6 @@ code {
   box-shadow: var(--shadow-soft);
 }
 
-.intel-toggle {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 14px;
-  cursor: pointer;
-  margin-bottom: 8px;
-}
-
-.intel-toggle em {
-  color: var(--ink-3);
-  font-style: normal;
-  font-size: 12px;
-}
-
-.inline-field {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 13px;
-  color: var(--ink-2);
-}
 
 .num {
   width: 84px;
@@ -1394,11 +1422,125 @@ code {
   font-variant-numeric: tabular-nums;
 }
 
+/* ---------- settings rows ----------
+   Label and hint on the left, the control on the right, divided by hairlines
+   so a group of settings reads as one block instead of a stack of panels. */
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 12px 0;
+  border-top: 1px solid var(--line-soft);
+}
+
+.card > .setting-row:first-of-type {
+  border-top: none;
+  padding-top: 2px;
+}
+
+.setting-row.stacked {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+}
+
+.setting-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  max-width: 62ch;
+}
+
+.setting-label {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.setting-hint {
+  font-size: 12.5px;
+  color: var(--ink-3);
+  line-height: 1.5;
+}
+
+.setting-control {
+  flex-shrink: 0;
+}
+
+.control-pair {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.switch {
+  position: relative;
+  width: 40px;
+  height: 23px;
+  border-radius: 99px;
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.switch-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  background: var(--surface);
+  box-shadow: 0 1px 2px rgba(20, 24, 15, 0.28);
+  transition: transform 140ms ease;
+}
+
+.switch.on {
+  background: var(--accent);
+  border-color: transparent;
+}
+
+.switch.on .switch-knob {
+  transform: translateX(17px);
+}
+
+.switch:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* The one secondary button: outline, quiet, same height as a switch. */
+.btn-quiet {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--ink-2);
+  font-size: 12.5px;
+  font-weight: 500;
+  padding: 5px 13px;
+  cursor: pointer;
+}
+
+.btn-quiet:hover:not(:disabled) {
+  border-color: var(--ink-3);
+  color: var(--ink);
+}
+
+.btn-quiet:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
 .about {
   display: grid;
-  grid-template-columns: 140px 1fr;
-  gap: 8px 16px;
+  grid-template-columns: 150px 1fr;
+  gap: 9px 16px;
   font-size: 13px;
+  align-items: baseline;
 }
 
 .about dt {
@@ -1427,11 +1569,6 @@ code {
   font-variant-numeric: tabular-nums;
   margin-left: 2px;
 }
-
-
-
-
-
 
 
 .pkg-badge {
@@ -1868,12 +2005,6 @@ code {
 }
 
 
-
-
-
-
-
-
 .live-subagents {
   font-size: 12px;
   color: var(--ink-2);
@@ -1939,7 +2070,6 @@ code {
 }
 
 /* ---------- overview mini rows ---------- */
-
 
 
 .pkg-empty {
@@ -2646,44 +2776,44 @@ code {
   white-space: nowrap;
 }
 
-.insp-kv {
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  font-size: 12.5px;
-  margin-bottom: 6px;
-}
-
-.insp-kv li {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 8px;
-  color: var(--ink-2);
-}
-
-.insp-kv li span {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
 
 .insp-kv b {
   font-variant-numeric: tabular-nums;
   color: var(--ink);
 }
 
-.insp-kv li.bad b {
-  color: var(--bad);
+
+.insp-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  text-align: center;
+  color: var(--ink-3);
+  font-size: 13px;
 }
 
-.insp-hint {
-  margin-top: auto;
-  padding-top: 16px;
+.insp-empty-mascot {
+  width: 96px;
+  height: auto;
+  opacity: 0.9;
+}
+
+.insp-keys {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
   font-size: 11.5px;
-  color: var(--ink-3);
-  text-align: center;
+}
+
+.insp-keys li {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
 }
 
 /* Session header: the transcript-recovery note is a chip, not a banner. */
@@ -2712,18 +2842,6 @@ code {
   border-left: 1px solid var(--line-soft);
 }
 
-
-.inspector-mascot-wrap {
-  display: block;
-  width: 120px;
-  margin: 0 auto 10px;
-}
-
-.inspector-mascot {
-  width: 120px;
-  height: 120px;
-  object-fit: contain;
-}
 
 /* ---------- toast ---------- */
 

@@ -30,13 +30,13 @@ export function NavRail(props: {
     <nav className="navrail">
       <div className="drag-strip" data-tauri-drag-region />
       <div className="brand" data-tauri-drag-region>
-        {/* The mascot avatar lands in public/mascot-avatar.png; until it
-            exists the image 404s, hides itself, and the T mark shows. */}
+{/* The app icon itself, so the window matches the dock. The T mark
+            shows only if the image is missing. */}
         <span className="brand-mark">
-          <TraconMark size={16} />
+          <TraconMark size={15} />
           <img
             className="brand-avatar"
-            src="/mascot-avatar.png"
+            src="/app-mark.png"
             alt=""
             onError={(e) => {
               e.currentTarget.style.display = "none";
