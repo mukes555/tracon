@@ -1,13 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../lib/api";
 import type { AgentEvent } from "../lib/types";
-// Rows open the app-wide slide-over (DetailPanel) instead of expanding
-// inline; payload fetching lives there now.
-import { agentCounts, groupByDay, projectName } from "../lib/format";
+import { agentCounts, projectName, severityOf, type Severity } from "../lib/format";
 import { AgentChips } from "./AgentChips";
 import { EventRow } from "./EventRow";
 import { CheckIcon, FlagIcon } from "./icons";
-import { StatusBar } from "./StatusBar";
+import { KeyHints, StatusBar } from "./StatusBar";
 
 type Category =
   | "deletes"
@@ -33,7 +31,8 @@ export function FlaggedView(props: {
   flagged: AgentEvent[];
   ackedCount: number;
   selectedId?: number;
-  onChanged: () => void;
+  onAck: (event: AgentEvent, acked: boolean) => Promise<void>;
+  onAckMany: (events: AgentEvent[], acked: boolean) => Promise<void>;
   onOpenEvent: (event: AgentEvent, acked?: boolean) => void;
 }) {
   const [bucket, setBucket] = useState<"open" | "acked">("open");
@@ -76,12 +75,10 @@ export function FlaggedView(props: {
   const hidden = allFiltered.length - filtered.length;
 
   const setAck = async (event: AgentEvent, acked: boolean) => {
-    if (event.id === undefined) return;
-    await api.ackEvent(event.id, acked).catch(() => {});
+    await props.onAck(event, acked);
     if (bucket === "acked") {
       setAckedList((list) => list.filter((e) => e.id !== event.id));
     }
-    props.onChanged();
   };
 
   return (
@@ -151,12 +148,20 @@ export function FlaggedView(props: {
           </p>
         </div>
       ) : (
-        groupByDay(filtered, (row) => row.event.ts).map((group) => (
-          <section key={group.label} className="group">
-            <h2 className="group-head">
+        groupBySeverity(filtered).map((group) => (
+          <section key={group.severity} className="group">
+            <h2 className={`group-head sev-${group.severity}`}>
               <span className="group-bar" />
               {group.label}
               <span className="group-count">{group.items.length}</span>
+              {bucket === "open" && (
+                <button
+                  className="linkish group-action"
+                  onClick={() => props.onAckMany(group.items.map((row) => row.event), true)}
+                >
+                  acknowledge all
+                </button>
+              )}
             </h2>
             <ul className="rows">
               {group.items.map((row, i) => {
@@ -192,9 +197,28 @@ export function FlaggedView(props: {
           </button>
         </div>
       )}
-      <StatusBar left={`${filtered.length} of ${allFiltered.length} ${bucket === "open" ? "open" : "acknowledged"} flags shown`} />
+      <StatusBar
+        left={`${filtered.length} of ${allFiltered.length} ${bucket === "open" ? "open" : "acknowledged"} flags shown`}
+        right={<KeyHints ack={bucket === "open"} />}
+      />
     </main>
   );
+}
+
+type Row = { event: AgentEvent; category: Category };
+
+const SEVERITY_LABELS: { severity: Severity; label: string }[] = [
+  { severity: "critical", label: "Critical" },
+  { severity: "warning", label: "Warning" },
+  { severity: "notice", label: "Notice" },
+];
+
+/// Triage order: what can leak or destroy first, then the rest.
+function groupBySeverity(rows: Row[]): { severity: Severity; label: string; items: Row[] }[] {
+  return SEVERITY_LABELS.map((tier) => ({
+    ...tier,
+    items: rows.filter((row) => severityOf(row.event.flag ?? "", row.event.summary) === tier.severity),
+  })).filter((group) => group.items.length > 0);
 }
 
 function categoryOf(flag: string): Category {

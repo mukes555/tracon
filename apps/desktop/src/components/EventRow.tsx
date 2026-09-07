@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import type { AgentEvent } from "../lib/types";
 import { agentLabel, kindLabel, projectName, severityOf, timeOf } from "../lib/format";
 import { packageParts } from "../lib/packages";
@@ -17,6 +18,11 @@ export function EventRow(props: {
   onOpen: (event: AgentEvent) => void;
 }) {
   const e = props.event;
+  // Keyboard stepping selects rows that may be off screen.
+  const ref = useRef<HTMLLIElement>(null);
+  useEffect(() => {
+    if (props.selected) ref.current?.scrollIntoView({ block: "nearest" });
+  }, [props.selected]);
   const classes = ["row"];
   if (e.flag) classes.push("flagged");
   if (props.selected) classes.push("selected");
@@ -49,9 +55,9 @@ export function EventRow(props: {
     </button>
   );
 
-  if (!props.action) return <li>{row}</li>;
+  if (!props.action) return <li ref={ref}>{row}</li>;
   return (
-    <li className="row-line">
+    <li ref={ref} className="row-line">
       {row}
       {props.action}
     </li>

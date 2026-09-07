@@ -8,3 +8,19 @@ export function StatusBar(props: { left: string; right?: React.ReactNode }) {
     </footer>
   );
 }
+
+/// The list shortcuts, shown on the right of a status bar.
+export function KeyHints(props: { ack?: boolean }) {
+  return (
+    <span className="key-hints">
+      <kbd className="kbd">↑</kbd>
+      <kbd className="kbd">↓</kbd> move
+      {props.ack && (
+        <>
+          <kbd className="kbd">A</kbd> acknowledge
+        </>
+      )}
+      <kbd className="kbd">Esc</kbd> close
+    </span>
+  );
+}

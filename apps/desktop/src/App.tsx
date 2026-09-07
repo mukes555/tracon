@@ -22,7 +22,7 @@ import { FilterBar } from "./components/FilterBar";
 import { FlaggedView } from "./components/FlaggedView";
 import { LiveView } from "./components/LiveView";
 import { NavRail } from "./components/NavRail";
-import { StatusBar } from "./components/StatusBar";
+import { KeyHints, StatusBar } from "./components/StatusBar";
 import { TopBar } from "./components/TopBar";
 import { OverviewView } from "./components/OverviewView";
 import { PackagesView } from "./components/PackagesView";
@@ -37,6 +37,8 @@ const ADVANCED_KEY = "tracon-advanced";
 // Past this width the event detail docks as a right column instead of a
 // slide-over, so the list stays visible while inspecting.
 const INSPECTOR_QUERY = "(min-width: 1280px)";
+const VIEW_KEYS: View[] = ["overview", "live", "timeline", "packages", "flagged", "settings"];
+const TOAST_MS = 6000;
 
 function App() {
   const [view, setView] = useState<View>("overview");
@@ -114,14 +116,29 @@ function App() {
     setSelected(sessionId);
     setDetail(null);
   }, []);
-  const ackQuick = useCallback(
-    async (event: AgentEvent, acked = true) => {
-      if (event.id !== undefined) {
-        await api.ackEvent(event.id, acked).catch(() => {});
-      }
+  // One toast at a time, with an optional undo; a new one replaces the old.
+  const [toast, setToast] = useState<{ text: string; undo?: () => void } | null>(null);
+  const toastTimer = useRef<number | undefined>(undefined);
+  const showToast = useCallback((text: string, undo?: () => void) => {
+    window.clearTimeout(toastTimer.current);
+    setToast({ text, undo });
+    toastTimer.current = window.setTimeout(() => setToast(null), TOAST_MS);
+  }, []);
+
+  const ackMany = useCallback(
+    async (targets: AgentEvent[], acked: boolean, withToast = true) => {
+      const ids = targets.map((e) => e.id).filter((id): id is number => id !== undefined);
+      await Promise.all(ids.map((id) => api.ackEvent(id, acked).catch(() => {})));
       flagsChanged();
+      if (!withToast) return;
+      const what = targets.length === 1 ? (targets[0].summary ?? "1 flag") : `${targets.length} flags`;
+      showToast(`${acked ? "Acknowledged" : "Reopened"} ${what}`, () => ackMany(targets, !acked, false));
     },
-    [flagsChanged],
+    [flagsChanged, showToast],
+  );
+  const ackQuick = useCallback(
+    (event: AgentEvent, acked = true) => ackMany([event], acked),
+    [ackMany],
   );
   const ackFromPanel = useCallback(
     async (event: AgentEvent, acked: boolean) => {
@@ -131,16 +148,6 @@ function App() {
     [ackQuick],
   );
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
-        e.preventDefault();
-        setPaletteOpen((open) => !open);
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
 
   useEffect(() => {
     api
@@ -240,6 +247,56 @@ function App() {
     },
     [detailList, detailIndex, detail?.acked],
   );
+  // Arrow keys walk the current list; with nothing open they start at the
+  // nearest end of it.
+  const moveSelection = useCallback(
+    (delta: 1 | -1) => {
+      if (detailList.length === 0) return;
+      if (detailIndex < 0) {
+        setDetail({ event: detailList[delta > 0 ? 0 : detailList.length - 1] });
+        return;
+      }
+      stepDetail(delta);
+    },
+    [detailList, detailIndex, stepDetail],
+  );
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setPaletteOpen((open) => !open);
+        return;
+      }
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (paletteOpen || threadFor) return;
+      const target = e.target as HTMLElement | null;
+      const typing =
+        target !== null &&
+        (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable);
+      if (typing) return;
+
+      const viewNumber = Number(e.key);
+      if (viewNumber >= 1 && viewNumber <= VIEW_KEYS.length) {
+        setView(VIEW_KEYS[viewNumber - 1]);
+        return;
+      }
+      if (e.key === "ArrowDown" || e.key === "j") {
+        e.preventDefault();
+        moveSelection(1);
+      } else if (e.key === "ArrowUp" || e.key === "k") {
+        e.preventDefault();
+        moveSelection(-1);
+      } else if (e.key === "Escape") {
+        setDetail(null);
+      } else if (e.key === "a" && detail?.event.flag && !detail.acked) {
+        ackQuick(detail.event, true);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [paletteOpen, threadFor, moveSelection, detail, ackQuick]);
+
   const readSelectedSession = useCallback(
     (s: SessionSummary) => setThreadFor({ sessionId: s.session_id, agent: s.agent, title: projectName(s.cwd) }),
     [],
@@ -268,6 +325,21 @@ function App() {
           onAck={ackFromPanel}
           onOpenSession={openSessionTimeline}
         />
+      )}
+      {toast && (
+        <div className="toast" role="status">
+          <span>{toast.text}</span>
+          {toast.undo && (
+            <button
+              onClick={() => {
+                toast.undo?.();
+                setToast(null);
+              }}
+            >
+              Undo
+            </button>
+          )}
+        </div>
       )}
       {threadFor && (
         <ThreadViewer
@@ -326,6 +398,7 @@ function App() {
                 <div className="timeline-toolbar">
                   <SessionHeader
                     session={selectedSession}
+                    live={live.some((s) => s.session_id === selectedSession.session_id)}
                     onExport={exportSelected}
                     onReadThread={() =>
                       setThreadFor({
@@ -350,6 +423,7 @@ function App() {
                 />
                 <StatusBar
                   left={`${filteredEvents.length} of ${events.length} events · updated ${updatedAt ? relTime(updatedAt) : "..."}`}
+                  right={<KeyHints ack />}
                 />
               </>
             ) : (
@@ -380,7 +454,8 @@ function App() {
           ackedCount={stats?.acked_count ?? 0}
           selectedId={detail?.event.id}
           onOpenEvent={openDetail}
-          onChanged={flagsChanged}
+          onAck={ackQuick}
+          onAckMany={ackMany}
         />
       )}
 
@@ -418,6 +493,7 @@ function App() {
 
 function SessionHeader(props: {
   session: SessionSummary;
+  live: boolean;
   onExport: () => void;
   onReadThread: () => void;
 }) {
@@ -425,7 +501,10 @@ function SessionHeader(props: {
   return (
     <div className="session-header">
       <div>
-        <h1>{projectName(s.cwd)}</h1>
+        <h1 className="session-title">
+          {props.live && <span className="pulse-dot" title="Active in the last 5 minutes" />}
+          {projectName(s.cwd)}
+        </h1>
         <p className="view-sub">
           {agentLabel(s.agent)} · {s.event_count} events · {s.command_count} commands ·{" "}
           {durationLabel(s.started_at, s.last_at)}
