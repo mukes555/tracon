@@ -17,15 +17,11 @@ Every command, file edit, and package install from Claude Code, Codex, Cursor, a
 
 <img src="docs/media/demo.gif" width="860" alt="A tour of Tracon: the Overview, the Live page with three agents streaming, a session timeline with a flagged command open in the inspector, the conversation behind it, the Flagged inbox grouped by severity, the package ledger, Settings, and the command palette" />
 
-<sub>Everything shown here is sample data.</sub>
-
 </div>
 
 ## Why
 
 Agents run in auto-accept mode all day. They install packages, run shell commands, and rewrite files, and almost none of it gets reviewed. Tracon records what they actually did so you can check afterwards.
-
-It is named after the FAA's Terminal Radar Approach Control, the radar room that tracks every aircraft through an airspace.
 
 ## The screens
 
