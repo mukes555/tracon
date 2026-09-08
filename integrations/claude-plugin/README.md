@@ -33,10 +33,10 @@ From this repository:
 claude --plugin-dir ./integrations/claude-plugin
 ```
 
-Or add the marketplace once the repo is on GitHub:
+Or install from GitHub, with no clone:
 
 ```
-/plugin marketplace add tracon-dev/tracon
+/plugin marketplace add mukes555/tracon
 /plugin install tracon@tracon
 ```
 

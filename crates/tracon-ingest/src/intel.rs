@@ -42,7 +42,7 @@ pub fn is_enabled(store: &Store) -> bool {
 pub async fn run_worker(store: Arc<Store>) {
     let client = match reqwest::Client::builder()
         .timeout(REQUEST_TIMEOUT)
-        .user_agent("tracon (https://github.com/tracon-dev/tracon)")
+        .user_agent("tracon (https://github.com/mukes555/tracon)")
         .build()
     {
         Ok(c) => c,
